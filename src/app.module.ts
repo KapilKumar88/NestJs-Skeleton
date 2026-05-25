@@ -1,23 +1,23 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { AppController } from './app.controller';
-import { AppService } from './app.service';
-import { PrismaModule } from './modules/prisma/prisma.module';
-import { AuthenticationModule } from './modules/authentication/authentication.module';
-import { EmailAlreadyExist } from './custom_validation/email-already-exists.rule';
-import { UserService } from './modules/user/user.service';
+import { DatabaseModule } from './services/database/database.module';
+import { AuthModule } from './api/v1/auth/auth.module';
+import appConfig from './config/app.config';
+import databaseConfig from './config/database.config';
 import jwtConfig from './config/jwt.config';
+import redisConfig from './config/redis.config';
+import mailConfig from './config/mail.config';
 
 @Module({
   imports: [
     ConfigModule.forRoot({
       isGlobal: true,
-      load: [jwtConfig],
+      load: [appConfig, databaseConfig, jwtConfig, redisConfig, mailConfig],
     }),
-    PrismaModule,
-    AuthenticationModule,
+    DatabaseModule,
+    AuthModule,
   ],
   controllers: [AppController],
-  providers: [AppService, EmailAlreadyExist, UserService],
 })
 export class AppModule {}
