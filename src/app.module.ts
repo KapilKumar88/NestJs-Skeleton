@@ -7,6 +7,7 @@ import { DatabaseModule } from './services/database/database.module';
 import { GuardModule } from './guard/guard.module';
 import { AuthModule } from './api/v1/auth/auth.module';
 import { UsersModule } from './api/v1/users/users.module';
+import { TodosModule } from './api/v1/todos/todos.module';
 import { JwtAuthGuard } from './guard/auth/jwt-auth.guard';
 import appConfig from './config/app.config';
 import databaseConfig from './config/database.config';
@@ -24,6 +25,7 @@ import mailConfig from './config/mail.config';
     GuardModule,
     UsersModule,
     AuthModule,
+    TodosModule,
   ],
   controllers: [AppController],
   providers: [
