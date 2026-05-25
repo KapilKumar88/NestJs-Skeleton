@@ -11,12 +11,33 @@ datasource db {
 }
 
 model User {
-  id        Int       @id @default(autoincrement())
-  email     String    @unique
-  name      String
-  password  String
-  last_login DateTime?
-  createdAt DateTime  @default(now())
-  updatedAt DateTime  @updatedAt
-  deletedAt DateTime?
+  id                 Int       @id @default(autoincrement())
+  email              String    @unique
+  name               String
+  password           String
+  hashedRefreshToken String?   @map("hashed_refresh_token")
+  last_login         DateTime?
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+  deletedAt          DateTime?
+  todos              Todo[]
+  // Migration: npx prisma migrate dev --name add_refresh_token_and_todo
+}
+
+model Todo {
+  id          Int        @id @default(autoincrement())
+  title       String
+  description String?
+  status      TodoStatus @default(PENDING)
+  userId      Int        @map("user_id")
+  user        User       @relation(fields: [userId], references: [id])
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+  deletedAt   DateTime?
+}
+
+enum TodoStatus {
+  PENDING
+  IN_PROGRESS
+  DONE
 }
