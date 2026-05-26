@@ -20,6 +20,7 @@
     "test:e2e": "jest --config ./test/jest-e2e.json"
   },
   "dependencies": {
+    "@nest-lab/throttler-storage-redis": "^1.2.0",
     "@nestjs/bullmq": "^10.2.3",
     "@nestjs/common": "^10.4.22",
     "@nestjs/config": "^3.3.0",
@@ -30,9 +31,11 @@
     "@nestjs/platform-express": "^10.4.22",
     "@nestjs/swagger": "^7.4.2",
     "@nestjs/terminus": "^10.3.0",
+    "@nestjs/throttler": "^6.5.0",
     "@prisma/client": "^4.11.0",
     "bcrypt": "^5.1.0",
     "bullmq": "^5.77.2",
+    "helmet": "^8.2.0",
     "ioredis": "^5.10.1",
     "nestjs-zod": "^5.4.0",
     "nodemailer": "^8.0.8",

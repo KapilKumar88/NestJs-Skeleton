@@ -10,18 +10,91 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+// ─── Enums ────────────────────────────────────────────────────────────────────
+
+enum TodoStatus {
+  PENDING
+  IN_PROGRESS
+  DONE
+}
+
+enum TokenType {
+  EMAIL_VERIFY
+  PASSWORD_RESET
+}
+
+// ─── Models ───────────────────────────────────────────────────────────────────
+
 model User {
-  id                 Int       @id @default(autoincrement())
-  email              String    @unique
-  name               String
-  password           String
-  hashedRefreshToken String?   @map("hashed_refresh_token")
-  last_login         DateTime?
-  createdAt          DateTime  @default(now())
-  updatedAt          DateTime  @updatedAt
-  deletedAt          DateTime?
+  id    Int    @id @default(autoincrement())
+  email String @unique
+  name  String
+
+  // Auth
+  password   String
+  last_login DateTime?
+
+  // Email verification
+  emailVerified   Boolean   @default(false) @map("email_verified")
+  emailVerifiedAt DateTime? @map("email_verified_at")
+
+  // Account lockout (protect login with abuse detection)
+  failedLoginAttempts Int       @default(0) @map("failed_login_attempts")
+  lockedUntil         DateTime? @map("locked_until")
+
+  // Timestamps / soft delete
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  // Relations
   todos              Todo[]
-  // Migration: npx prisma migrate dev --name add_refresh_token_and_todo
+  verificationTokens VerificationToken[]
+  refreshTokens      RefreshToken[]
+}
+
+// Single-use, expiry-bounded tokens for email verification and password reset.
+// Security:
+//   - Raw token generated with crypto.randomBytes(48) (192 bits entropy).
+//   - Only sha256 hash stored — high-entropy token makes sha256 safe for lookup.
+//   - Deleted on first use (single-use guarantee at DB level).
+//   - expiresAt enforces hard TTL: 24h for EMAIL_VERIFY, 1h for PASSWORD_RESET.
+model VerificationToken {
+  id        Int       @id @default(autoincrement())
+  userId    Int       @map("user_id")
+  type      TokenType
+  tokenHash String    @map("token_hash") // sha256 of the raw token
+  expiresAt DateTime  @map("expires_at")
+  createdAt DateTime  @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, type])
+  @@map("verification_tokens")
+}
+
+// Family-based refresh token store — enables reuse detection.
+// Security:
+//   - Each session gets a fresh `family` UUID; all rotations share it.
+//   - On rotation: old record marked revoked=true, new record inserted.
+//   - Replay of a revoked token: whole family revoked + [REFRESH_REUSE] audit.
+//   - Replaces hashedRefreshToken column on User (that column removed in S9).
+//   - store refresh tokens securely and rotate them.
+model RefreshToken {
+  id        String   @id @default(uuid()) // jti
+  userId    Int      @map("user_id")
+  tokenHash String   @map("token_hash") // sha256 of the raw refresh token
+  family    String // UUID shared by a rotation chain
+  revoked   Boolean  @default(false)
+  expiresAt DateTime @map("expires_at")
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([family])
+  @@index([tokenHash])
+  @@map("refresh_tokens")
 }
 
 model Todo {
@@ -30,14 +103,9 @@ model Todo {
   description String?
   status      TodoStatus @default(PENDING)
   userId      Int        @map("user_id")
-  user        User       @relation(fields: [userId], references: [id])
   createdAt   DateTime   @default(now())
   updatedAt   DateTime   @updatedAt
   deletedAt   DateTime?
-}
 
-enum TodoStatus {
-  PENDING
-  IN_PROGRESS
-  DONE
+  user User @relation(fields: [userId], references: [id])
 }
