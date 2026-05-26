@@ -5,15 +5,45 @@ import { MailService } from '../../services/mail/mail.service';
 
 export const EMAIL_QUEUE = 'email';
 
+// ─── Job payload types ────────────────────────────────────────────────────────
+
 export interface WelcomeEmailJob {
   userId: number;
   email: string;
   name: string;
 }
 
+export interface VerifyEmailJob {
+  email: string;
+  name: string;
+  verifyUrl: string; // contains the raw token — NEVER log this field
+}
+
+export interface AccountExistsNoticeJob {
+  email: string;
+  name: string;
+}
+
+export interface PasswordResetJob {
+  email: string;
+  name: string;
+  resetUrl: string; // contains the raw token — NEVER log this field
+}
+
+export type AnyEmailJob =
+  | WelcomeEmailJob
+  | VerifyEmailJob
+  | AccountExistsNoticeJob
+  | PasswordResetJob;
+
 /**
  * Processes jobs from the 'email' BullMQ queue.
- * Handles the 'welcome' job type by sending a welcome email via MailService.
+ *
+ * Security rules:
+ *  - Never log verifyUrl, tokens, or passwords — only log that the email was
+ *    sent (or failed) without the sensitive payload.
+ *  - Failed email deliveries are logged as warnings and do not re-throw, so
+ *    the job is marked completed rather than retried indefinitely.
  */
 @Processor(EMAIL_QUEUE)
 export class EmailProcessor extends WorkerHost {
@@ -23,22 +53,57 @@ export class EmailProcessor extends WorkerHost {
     super();
   }
 
-  async process(job: Job<WelcomeEmailJob>): Promise<void> {
-    this.logger.log(
-      `Processing job ${job.name} #${job.id} for user ${job.data.email}`,
-    );
+  async process(job: Job<AnyEmailJob>): Promise<void> {
+    // Log job name and id only — never log the payload (may contain tokens/emails)
+    this.logger.log(`Processing email job "${job.name}" #${job.id}`);
 
     switch (job.name) {
-      case 'welcome':
+      case 'welcome': {
+        const data = job.data as WelcomeEmailJob;
         await this.mailService.sendWelcome({
-          name: job.data.name,
-          email: job.data.email,
+          name: data.name,
+          email: data.email,
         });
-        this.logger.log(`Welcome email sent to ${job.data.email}`);
+        this.logger.log(`Welcome email dispatched for job #${job.id}`);
         break;
+      }
+
+      case 'verify-email': {
+        const data = job.data as VerifyEmailJob;
+        await this.mailService.sendVerificationEmail({
+          name: data.name,
+          email: data.email,
+          verifyUrl: data.verifyUrl,
+        });
+        // verifyUrl is NOT logged — it contains the raw token
+        this.logger.log(`Verification email dispatched for job #${job.id}`);
+        break;
+      }
+
+      case 'account-exists-notice': {
+        const data = job.data as AccountExistsNoticeJob;
+        await this.mailService.sendAccountExistsNotice({
+          name: data.name,
+          email: data.email,
+        });
+        this.logger.log(`Account-exists notice dispatched for job #${job.id}`);
+        break;
+      }
+
+      case 'password-reset': {
+        const data = job.data as PasswordResetJob;
+        await this.mailService.sendPasswordReset({
+          name: data.name,
+          email: data.email,
+          resetUrl: data.resetUrl,
+        });
+        // resetUrl is NOT logged — it contains the raw token
+        this.logger.log(`Password-reset email dispatched for job #${job.id}`);
+        break;
+      }
 
       default:
-        this.logger.warn(`Unknown job name: ${job.name}`);
+        this.logger.warn(`Unknown email job name: "${job.name}" #${job.id}`);
     }
   }
 }
