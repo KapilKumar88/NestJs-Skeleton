@@ -74,19 +74,22 @@ export class TodosRepository {
   }
 
   async update(id: number, userId: number, dto: UpdateTodoDto) {
-    return this.prisma.todo.update({
-      where: { id, userId },
+    // updateMany accepts non-unique where fields; ownership is pre-verified by service.findOne
+    await this.prisma.todo.updateMany({
+      where: { id, userId, deletedAt: null },
       data: {
         ...(dto.title !== undefined && { title: dto.title }),
         ...(dto.description !== undefined && { description: dto.description }),
         ...(dto.status !== undefined && { status: dto.status }),
       },
     });
+    return this.prisma.todo.findFirst({ where: { id, userId } });
   }
 
   async softDelete(id: number, userId: number) {
-    return this.prisma.todo.update({
-      where: { id, userId },
+    // updateMany accepts non-unique where fields; ownership is pre-verified by service.findOne
+    await this.prisma.todo.updateMany({
+      where: { id, userId, deletedAt: null },
       data: { deletedAt: new Date() },
     });
   }

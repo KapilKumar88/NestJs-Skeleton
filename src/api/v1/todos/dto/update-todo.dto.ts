@@ -5,7 +5,7 @@ export const updateTodoSchema = z.object({
   title: z.string().min(1).max(200).trim().optional(),
   description: z.string().max(1000).trim().optional(),
   status: z
-    .enum([TodoStatus.PENDING, TodoStatus.IN_PROGRESS, TodoStatus.COMPLETED])
+    .enum([TodoStatus.PENDING, TodoStatus.IN_PROGRESS, TodoStatus.DONE])
     .optional(),
 });
 
