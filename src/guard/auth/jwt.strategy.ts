@@ -2,13 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { PassportStrategy } from '@nestjs/passport';
 import { ExtractJwt, Strategy } from 'passport-jwt';
-
-export interface JwtPayload {
-  sub: number;
-  email: string;
-  iat?: number;
-  exp?: number;
-}
+import { JwtPayload } from '../../types/auth.types';
 
 /**
  * Passport JWT strategy — validates the access token from the Authorization header.

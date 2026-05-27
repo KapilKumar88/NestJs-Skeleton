@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Account already registered</title>
+  <style>
+    body { font-family: Arial, sans-serif; background: #f4f4f4; margin: 0; padding: 20px; }
+    .container { max-width: 600px; margin: 0 auto; background: #fff; border-radius: 8px; padding: 40px; box-shadow: 0 2px 8px rgba(0,0,0,.08); }
+    h1 { color: #333; margin-top: 0; }
+    p { color: #666; line-height: 1.6; }
+    ul { color: #666; line-height: 1.8; }
+    .footer { margin-top: 32px; font-size: 12px; color: #999; border-top: 1px solid #eee; padding-top: 16px; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>Hi <%= name %>,</h1>
+    <p>Someone (possibly you) tried to register a new account using this email address.</p>
+    <p>An account already exists for this email — no changes were made.</p>
+    <ul>
+      <li>If this was you, please <strong>log in</strong> with your existing password.</li>
+      <li>If you forgot your password, use the <strong>forgot password</strong> flow.</li>
+      <li>If you did not attempt this, you can safely ignore this email.</li>
+    </ul>
+    <div class="footer">
+      This notice was sent because a registration attempt was made with your email address.
+    </div>
+  </div>
+</body>
+</html>

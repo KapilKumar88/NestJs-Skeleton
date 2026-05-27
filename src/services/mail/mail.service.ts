@@ -1,12 +1,9 @@
+import * as path from 'node:path';
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import * as nodemailer from 'nodemailer';
-
-export interface SendMailOptions {
-  to: string;
-  subject: string;
-  html: string;
-}
+import * as ejs from 'ejs';
+import { SendMailOptions } from '../../types/mail.types';
 
 /**
  * Nodemailer-based mail service.
@@ -23,6 +20,12 @@ export class MailService {
   private readonly logger = new Logger(MailService.name);
   private readonly transporter: nodemailer.Transporter;
 
+  /**
+   * Absolute path to the compiled EJS email templates directory.
+   * nest-cli copies `src/templates/` → `dist/templates/` on build.
+   */
+  private readonly templatesDir: string;
+
   constructor(private readonly configService: ConfigService) {
     const mailConfig = {
       host: this.configService.get<string>('mail.host'),
@@ -34,7 +37,12 @@ export class MailService {
     };
 
     this.transporter = nodemailer.createTransport(mailConfig);
+
+    // __dirname is dist/services/mail — go up two levels to dist/, then into templates/emails
+    this.templatesDir = path.join(__dirname, '..', '..', 'templates', 'emails');
   }
+
+  // ─── Core send helper ─────────────────────────────────────────────────────────
 
   async sendMail(options: SendMailOptions): Promise<void> {
     const from = this.configService.get<string>('mail.from');
@@ -53,17 +61,28 @@ export class MailService {
     }
   }
 
-  // ─── Specific email templates ─────────────────────────────────────────────
+  // ─── EJS template renderer ────────────────────────────────────────────────────
+
+  /**
+   * Renders an EJS template from `src/templates/emails/<name>.ejs`
+   * and returns the compiled HTML string.
+   */
+  private async renderTemplate(
+    templateName: string,
+    data: Record<string, unknown>,
+  ): Promise<string> {
+    const templatePath = path.join(this.templatesDir, `${templateName}.ejs`);
+    return ejs.renderFile(templatePath, data);
+  }
+
+  // ─── Specific email senders ───────────────────────────────────────────────────
 
   async sendWelcome(user: { name: string; email: string }): Promise<void> {
+    const html = await this.renderTemplate('welcome', { name: user.name });
     await this.sendMail({
       to: user.email,
       subject: 'Welcome! 🎉',
-      html: `
-        <h1>Welcome, ${user.name}!</h1>
-        <p>Your account has been created successfully.</p>
-        <p>Start adding your todos today.</p>
-      `,
+      html,
     });
   }
 
@@ -77,21 +96,14 @@ export class MailService {
     email: string;
     verifyUrl: string;
   }): Promise<void> {
+    const html = await this.renderTemplate('verify-email', {
+      name: user.name,
+      verifyUrl: user.verifyUrl,
+    });
     await this.sendMail({
       to: user.email,
       subject: 'Verify your email address',
-      html: `
-        <h1>Hi ${user.name},</h1>
-        <p>Thanks for registering. Please verify your email address to activate your account.</p>
-        <p>
-          <a href="${user.verifyUrl}" style="
-            display:inline-block;padding:12px 24px;background:#4f46e5;
-            color:#fff;text-decoration:none;border-radius:6px;font-weight:600
-          ">Verify Email</a>
-        </p>
-        <p>This link expires in <strong>24 hours</strong>.</p>
-        <p>If you did not create an account, you can safely ignore this email.</p>
-      `,
+      html,
     });
   }
 
@@ -105,22 +117,14 @@ export class MailService {
     email: string;
     resetUrl: string;
   }): Promise<void> {
+    const html = await this.renderTemplate('password-reset', {
+      name: user.name,
+      resetUrl: user.resetUrl,
+    });
     await this.sendMail({
       to: user.email,
       subject: 'Reset your password',
-      html: `
-        <h1>Hi ${user.name},</h1>
-        <p>We received a request to reset the password for your account.</p>
-        <p>
-          <a href="${user.resetUrl}" style="
-            display:inline-block;padding:12px 24px;background:#dc2626;
-            color:#fff;text-decoration:none;border-radius:6px;font-weight:600
-          ">Reset Password</a>
-        </p>
-        <p>This link expires in <strong>1 hour</strong> and can only be used once.</p>
-        <p>If you did not request a password reset, you can safely ignore this email.
-           Your password will not be changed.</p>
-      `,
+      html,
     });
   }
 
@@ -132,19 +136,13 @@ export class MailService {
     name: string;
     email: string;
   }): Promise<void> {
+    const html = await this.renderTemplate('account-exists-notice', {
+      name: user.name,
+    });
     await this.sendMail({
       to: user.email,
       subject: 'Account already registered',
-      html: `
-        <h1>Hi ${user.name},</h1>
-        <p>Someone (possibly you) tried to register a new account using this email address.</p>
-        <p>An account already exists for this email — no changes were made.</p>
-        <ul>
-          <li>If this was you, please <strong>log in</strong> with your existing password.</li>
-          <li>If you forgot your password, use the <strong>forgot password</strong> flow.</li>
-          <li>If you did not attempt this, you can safely ignore this email.</li>
-        </ul>
-      `,
+      html,
     });
   }
 }

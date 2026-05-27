@@ -4,7 +4,7 @@ import {
   PipeTransform,
   UnprocessableEntityException,
 } from '@nestjs/common';
-import { ZodSchema } from 'zod';
+import { ZodType } from 'zod';
 
 /**
  * Validates and transforms incoming data against a Zod schema.
@@ -24,7 +24,7 @@ import { ZodSchema } from 'zod';
  */
 @Injectable()
 export class ZodValidationPipe implements PipeTransform {
-  constructor(private readonly schema?: ZodSchema) {}
+  constructor(private readonly schema?: ZodType) {}
 
   transform(value: unknown, metadata: ArgumentMetadata) {
     // Resolve which schema to use
@@ -56,9 +56,9 @@ export class ZodValidationPipe implements PipeTransform {
    */
   private extractSchemaFromMetatype(
     metatype: ArgumentMetadata['metatype'],
-  ): ZodSchema | undefined {
+  ): ZodType | undefined {
     if (metatype && typeof (metatype as any).schema?.safeParse === 'function') {
-      return (metatype as any).schema as ZodSchema;
+      return (metatype as any).schema as ZodType;
     }
     return undefined;
   }

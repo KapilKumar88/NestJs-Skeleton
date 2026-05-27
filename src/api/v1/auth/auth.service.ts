@@ -13,12 +13,12 @@ import { VerifyEmailDto } from './dto/verify-email.dto';
 import { ResendVerificationDto } from './dto/resend-verification.dto';
 import { ForgotPasswordDto } from './dto/forgot-password.dto';
 import { ResetPasswordDto } from './dto/reset-password.dto';
-import { EMAIL_QUEUE } from '../../../queues/email/email.processor';
+import { EMAIL_QUEUE, EmailJobName } from '../../../common/constants';
+import {
+  VERIFY_TOKEN_TTL_MS,
+  RESET_TOKEN_TTL_MS,
+} from '../../../common/constants/auth.constants';
 import { AuditLogger } from '../../../common/logger/audit.logger';
-
-// Verification token TTLs
-const VERIFY_TOKEN_TTL_MS = 24 * 60 * 60 * 1000; // EMAIL_VERIFY: 24 h
-const RESET_TOKEN_TTL_MS = 60 * 60 * 1000; // PASSWORD_RESET: 1 h
 
 @Injectable()
 export class AuthService {
@@ -50,7 +50,7 @@ export class AuthService {
     if (existing) {
       // Duplicate: send a notice to the account owner, reveal nothing to caller
       this.emailQueue
-        .add('account-exists-notice', {
+        .add(EmailJobName.ACCOUNT_EXISTS_NOTICE, {
           email: existing.email,
           name: existing.name,
         })
@@ -81,7 +81,7 @@ export class AuthService {
       const verifyUrl = `${appUrl}/v1/auth/verify-email?token=${rawToken}`;
 
       this.emailQueue
-        .add('verify-email', {
+        .add(EmailJobName.VERIFY_EMAIL, {
           email: user.email,
           name: user.name,
           verifyUrl,
@@ -212,9 +212,9 @@ export class AuthService {
    */
   async resendVerification(
     dto: ResendVerificationDto,
-    requestId?: string,
+    _requestId?: string,
   ): Promise<null> {
-    void requestId; // requestId logged at controller level via AuditLogger.register
+    // _requestId is intentionally unused here — it is logged at the controller level
 
     const user = await this.authRepository.findByEmail(dto.email);
 
@@ -230,7 +230,7 @@ export class AuthService {
       const verifyUrl = `${appUrl}/v1/auth/verify-email?token=${rawToken}`;
 
       this.emailQueue
-        .add('verify-email', {
+        .add(EmailJobName.VERIFY_EMAIL, {
           email: user.email,
           name: user.name,
           verifyUrl,
@@ -265,31 +265,33 @@ export class AuthService {
     AuditLogger.passwordResetRequested(requestId);
 
     const user = await this.authRepository.findByEmail(dto.email);
-    if (!user) return null; // silent no-op — same response to caller
 
-    const expiresAt = new Date(Date.now() + RESET_TOKEN_TTL_MS);
-    const rawToken = await this.authRepository.createVerificationToken(
-      user.id,
-      TokenType.PASSWORD_RESET,
-      expiresAt,
-    );
-
-    const appUrl = this.configService.get<string>('app.appUrl');
-    // resetUrl contains the raw token — sent in the email, never logged
-    const resetUrl = `${appUrl}/reset-password?token=${rawToken}`;
-
-    this.emailQueue
-      .add('password-reset', {
-        email: user.email,
-        name: user.name,
-        resetUrl,
-      })
-      .catch((err: Error) =>
-        this.logger.warn(
-          `Failed to enqueue password-reset email: ${err.message}`,
-        ),
+    if (user) {
+      const expiresAt = new Date(Date.now() + RESET_TOKEN_TTL_MS);
+      const rawToken = await this.authRepository.createVerificationToken(
+        user.id,
+        TokenType.PASSWORD_RESET,
+        expiresAt,
       );
 
+      const appUrl = this.configService.get<string>('app.appUrl');
+      // resetUrl contains the raw token — sent in the email, never logged
+      const resetUrl = `${appUrl}/reset-password?token=${rawToken}`;
+
+      this.emailQueue
+        .add(EmailJobName.PASSWORD_RESET, {
+          email: user.email,
+          name: user.name,
+          resetUrl,
+        })
+        .catch((err: Error) =>
+          this.logger.warn(
+            `Failed to enqueue password-reset email: ${err.message}`,
+          ),
+        );
+    }
+
+    // Uniform response — same null returned whether or not user exists (enumeration safety)
     return null;
   }
 
@@ -429,7 +431,7 @@ export class AuthService {
   private parseRefreshExpiresAt(): Date {
     const expiresIn =
       this.configService.get<string>('jwt.refreshExpiresIn') ?? '7d';
-    const match = /^(\d+)(d|h|m|s)?$/.exec(expiresIn);
+    const match = /^(\d+)([dhms])?$/.exec(expiresIn);
     if (!match) return new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
     const value = Number.parseInt(match[1], 10);
     const unit = match[2] ?? 's';

@@ -11,7 +11,7 @@ export const buildUser = (overrides?: Partial<User>): User => ({
   id: 1,
   email: 'test@example.com',
   name: 'Test User',
-  password: '$2b$10$hashedpassword.placeholder', // placeholder bcrypt hash
+  password: '$2b$10$hashedpassword.placeholder', // NOSONAR — fake bcrypt hash used only in tests
   emailVerified: true,
   emailVerifiedAt: new Date('2026-01-01T00:00:00.000Z'),
   failedLoginAttempts: 0,

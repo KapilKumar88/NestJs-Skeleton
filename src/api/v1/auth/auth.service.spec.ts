@@ -603,7 +603,7 @@ describe('AuthService (security)', () => {
     });
 
     it('revokes ALL sessions when no refresh token is provided (fallback)', async () => {
-      await service.logout(1, undefined);
+      await service.logout(1);
 
       expect(repo.revokeAllUserSessions).toHaveBeenCalledWith(1);
       expect(repo.revokeRefreshToken).not.toHaveBeenCalled();

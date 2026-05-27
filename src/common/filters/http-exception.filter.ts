@@ -38,30 +38,15 @@ export class HttpExceptionFilter implements ExceptionFilter {
     const requestId =
       (request.headers['x-request-id'] as string | undefined) ?? '-';
 
-    let status = HttpStatus.INTERNAL_SERVER_ERROR;
+    // All branches assign status; no safe default needed here
+    let status: number;
     let clientMessage = 'Internal server error'; // safe default — never leaks internals
 
     if (exception instanceof HttpException) {
       // ── Known HTTP exceptions (thrown by our code) ──────────────────────
       // These are intentional and their messages are already safe for clients.
       status = exception.getStatus();
-      const exceptionResponse = exception.getResponse();
-
-      if (typeof exceptionResponse === 'string') {
-        clientMessage = exceptionResponse;
-      } else if (
-        typeof exceptionResponse === 'object' &&
-        exceptionResponse !== null
-      ) {
-        const resp = exceptionResponse as Record<string, unknown>;
-        if (Array.isArray(resp.message)) {
-          clientMessage = (resp.message as unknown[]).join('; ');
-        } else if (typeof resp.message === 'string') {
-          clientMessage = resp.message;
-        } else if (typeof resp.error === 'string') {
-          clientMessage = resp.error;
-        }
-      }
+      clientMessage = this.extractClientMessage(exception);
 
       if (status >= 500) {
         this.logger.error(
@@ -79,7 +64,6 @@ export class HttpExceptionFilter implements ExceptionFilter {
       // names, and column details — never expose them to clients.
       // Log full detail server-side only.
       status = HttpStatus.INTERNAL_SERVER_ERROR;
-      clientMessage = 'Internal server error';
       this.logger.error(
         `[${requestId}] PrismaError ${exception.code} ${request.method} ${request.url}`,
         exception.stack,
@@ -89,7 +73,6 @@ export class HttpExceptionFilter implements ExceptionFilter {
       // Could be anything — third-party library errors, type errors, etc.
       // Never echo exception.message (may contain file paths, secrets, etc.)
       status = HttpStatus.INTERNAL_SERVER_ERROR;
-      clientMessage = 'Internal server error';
       this.logger.error(
         `[${requestId}] Unhandled ${exception.constructor.name} ${request.method} ${request.url}`,
         exception.stack,
@@ -97,11 +80,10 @@ export class HttpExceptionFilter implements ExceptionFilter {
     } else {
       // ── Non-Error throwables ────────────────────────────────────────────
       status = HttpStatus.INTERNAL_SERVER_ERROR;
-      clientMessage = 'Internal server error';
+      const exceptionStr =
+        typeof exception === 'string' ? exception : JSON.stringify(exception);
       this.logger.error(
-        `[${requestId}] Unknown exception type ${request.method} ${
-          request.url
-        }: ${String(exception)}`,
+        `[${requestId}] Unknown exception type ${request.method} ${request.url}: ${exceptionStr}`,
       );
     }
 
@@ -110,5 +92,32 @@ export class HttpExceptionFilter implements ExceptionFilter {
       message: clientMessage,
       data: null,
     });
+  }
+
+  /**
+   * Extracts a safe client-facing message from an HttpException response.
+   * Falls back to 'Internal server error' if the shape is unrecognised.
+   */
+  private extractClientMessage(exception: HttpException): string {
+    const exceptionResponse = exception.getResponse();
+
+    if (typeof exceptionResponse === 'string') {
+      return exceptionResponse;
+    }
+
+    if (typeof exceptionResponse === 'object' && exceptionResponse !== null) {
+      const resp = exceptionResponse as Record<string, unknown>;
+      if (Array.isArray(resp.message)) {
+        return (resp.message as string[]).map(String).join('; ');
+      }
+      if (typeof resp.message === 'string') {
+        return resp.message;
+      }
+      if (typeof resp.error === 'string') {
+        return resp.error;
+      }
+    }
+
+    return 'Internal server error';
   }
 }

@@ -2,39 +2,16 @@ import { Logger } from '@nestjs/common';
 import { Processor, WorkerHost } from '@nestjs/bullmq';
 import { Job } from 'bullmq';
 import { MailService } from '../../services/mail/mail.service';
+import {
+  AnyEmailJob,
+  WelcomeEmailJob,
+  VerifyEmailJob,
+  AccountExistsNoticeJob,
+  PasswordResetJob,
+} from '../../types/email-queue.types';
+import { EMAIL_QUEUE, EmailJobName } from '../../common/constants';
 
-export const EMAIL_QUEUE = 'email';
-
-// ─── Job payload types ────────────────────────────────────────────────────────
-
-export interface WelcomeEmailJob {
-  userId: number;
-  email: string;
-  name: string;
-}
-
-export interface VerifyEmailJob {
-  email: string;
-  name: string;
-  verifyUrl: string; // contains the raw token — NEVER log this field
-}
-
-export interface AccountExistsNoticeJob {
-  email: string;
-  name: string;
-}
-
-export interface PasswordResetJob {
-  email: string;
-  name: string;
-  resetUrl: string; // contains the raw token — NEVER log this field
-}
-
-export type AnyEmailJob =
-  | WelcomeEmailJob
-  | VerifyEmailJob
-  | AccountExistsNoticeJob
-  | PasswordResetJob;
+export { EMAIL_QUEUE } from '../../common/constants';
 
 /**
  * Processes jobs from the 'email' BullMQ queue.
@@ -58,7 +35,7 @@ export class EmailProcessor extends WorkerHost {
     this.logger.log(`Processing email job "${job.name}" #${job.id}`);
 
     switch (job.name) {
-      case 'welcome': {
+      case EmailJobName.WELCOME: {
         const data = job.data as WelcomeEmailJob;
         await this.mailService.sendWelcome({
           name: data.name,
@@ -68,7 +45,7 @@ export class EmailProcessor extends WorkerHost {
         break;
       }
 
-      case 'verify-email': {
+      case EmailJobName.VERIFY_EMAIL: {
         const data = job.data as VerifyEmailJob;
         await this.mailService.sendVerificationEmail({
           name: data.name,
@@ -80,7 +57,7 @@ export class EmailProcessor extends WorkerHost {
         break;
       }
 
-      case 'account-exists-notice': {
+      case EmailJobName.ACCOUNT_EXISTS_NOTICE: {
         const data = job.data as AccountExistsNoticeJob;
         await this.mailService.sendAccountExistsNotice({
           name: data.name,
@@ -90,7 +67,7 @@ export class EmailProcessor extends WorkerHost {
         break;
       }
 
-      case 'password-reset': {
+      case EmailJobName.PASSWORD_RESET: {
         const data = job.data as PasswordResetJob;
         await this.mailService.sendPasswordReset({
           name: data.name,

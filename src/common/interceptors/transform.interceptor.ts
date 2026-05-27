@@ -8,12 +8,7 @@ import { Reflector } from '@nestjs/core';
 import { Observable } from 'rxjs';
 import { map } from 'rxjs/operators';
 import { RESPONSE_MESSAGE_KEY } from '../decorators/response-message.decorator';
-
-export interface ApiResponse<T> {
-  success: boolean;
-  message: string;
-  data: T;
-}
+import { ApiResponse } from '../../types/api.types';
 
 /**
  * Wraps all successful responses in the standard shape:

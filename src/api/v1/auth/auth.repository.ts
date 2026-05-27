@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { Prisma, TokenType } from '@prisma/client';
 import * as bcrypt from 'bcrypt';
-import * as crypto from 'crypto';
+import * as crypto from 'node:crypto';
 import { PrismaService } from '../../../services/database/prisma.service';
 
 /**
