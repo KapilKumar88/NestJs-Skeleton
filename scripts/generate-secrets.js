@@ -2,10 +2,10 @@
 
 'use strict';
 
-const crypto = require('crypto');
-const fs = require('fs');
-const path = require('path');
-const readline = require('readline');
+const crypto = require('node:crypto');
+const fs = require('node:fs');
+const path = require('node:path');
+const readline = require('node:readline');
 
 const ROOT = path.resolve(__dirname, '..');
 const ENV_FILE = path.join(ROOT, '.env');
@@ -35,10 +35,10 @@ function applySecrets(parsed, secrets) {
 
   for (const [key, value] of Object.entries(secrets)) {
     const idx = parsed.map.get(key);
-    if (idx !== undefined) {
-      updated[idx] = `${key}=${value}`;
-    } else {
+    if (idx === undefined) {
       updated.push(`${key}=${value}`);
+    } else {
+      updated[idx] = `${key}=${value}`;
     }
   }
 
@@ -55,29 +55,23 @@ async function confirm(question) {
   });
 }
 
-async function main() {
-  const forceFlag = process.argv.includes('--force') || process.argv.includes('-f');
-
-  // Ensure .env exists (seed from .env.example if needed)
-  if (!fs.existsSync(ENV_FILE)) {
-    if (!fs.existsSync(ENV_EXAMPLE)) {
-      console.error('Error: neither .env nor .env.example found.');
-      process.exit(1);
-    }
-    fs.copyFileSync(ENV_EXAMPLE, ENV_FILE);
-    console.log('Created .env from .env.example');
+function ensureEnvExists() {
+  if (fs.existsSync(ENV_FILE)) return;
+  if (!fs.existsSync(ENV_EXAMPLE)) {
+    console.error('Error: neither .env nor .env.example found.');
+    process.exit(1);
   }
+  fs.copyFileSync(ENV_EXAMPLE, ENV_FILE);
+  console.log('Created .env from .env.example');
+}
 
-  const content = fs.readFileSync(ENV_FILE, 'utf8');
-  const parsed = parseEnvFile(content);
-
-  // Check which keys already have real (non-placeholder) values
+function classifyKeys(parsed) {
   const keysToGenerate = [];
   const keysToSkip = [];
 
   for (const key of SECRET_KEYS) {
     const idx = parsed.map.get(key);
-    const currentValue = idx !== undefined ? parsed.lines[idx].split('=').slice(1).join('=') : '';
+    const currentValue = idx === undefined ? '' : parsed.lines[idx].split('=').slice(1).join('=');
     const isPlaceholder =
       !currentValue || currentValue.startsWith('change_me') || currentValue.length < 32;
 
@@ -87,6 +81,28 @@ async function main() {
       keysToSkip.push(key);
     }
   }
+
+  return { keysToGenerate, keysToSkip };
+}
+
+async function confirmForce(keysToSkip) {
+  const answer = await confirm(
+    `--force will overwrite existing secrets for: ${keysToSkip.join(', ')}.\nThis will invalidate active sessions. Continue? [y/N] `,
+  );
+  if (answer !== 'y' && answer !== 'yes') {
+    console.log('Aborted.');
+    process.exit(0);
+  }
+}
+
+async function main() {
+  const forceFlag = process.argv.includes('--force') || process.argv.includes('-f');
+
+  ensureEnvExists();
+
+  const content = fs.readFileSync(ENV_FILE, 'utf8');
+  const parsed = parseEnvFile(content);
+  const { keysToGenerate, keysToSkip } = classifyKeys(parsed);
 
   if (keysToSkip.length > 0 && !forceFlag) {
     console.log(`\nThe following keys already have values and will be skipped:`);
@@ -102,13 +118,7 @@ async function main() {
   }
 
   if (forceFlag && keysToSkip.length > 0) {
-    const answer = await confirm(
-      `--force will overwrite existing secrets for: ${keysToSkip.join(', ')}.\nThis will invalidate active sessions. Continue? [y/N] `,
-    );
-    if (answer !== 'y' && answer !== 'yes') {
-      console.log('Aborted.');
-      process.exit(0);
-    }
+    await confirmForce(keysToSkip);
   }
 
   const secrets = {};
