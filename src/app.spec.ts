@@ -9,9 +9,7 @@ describe('App sanity', () => {
   });
 
   it('should export ResponseMessage decorator', async () => {
-    const { ResponseMessage } = await import(
-      './common/decorators/response-message.decorator'
-    );
+    const { ResponseMessage } = await import('./common/decorators/response-message.decorator');
     expect(typeof ResponseMessage).toBe('function');
   });
 

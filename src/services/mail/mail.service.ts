@@ -3,7 +3,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import * as nodemailer from 'nodemailer';
 import * as ejs from 'ejs';
-import { SendMailOptions } from '../../types/mail.types';
+import { type SendMailOptions } from '../../types/mail.types';
 
 /**
  * Nodemailer-based mail service.
@@ -54,9 +54,7 @@ export class MailService {
     } catch (err) {
       // Non-fatal: log the error but don't crash (especially in dev without SMTP)
       this.logger.warn(
-        `Failed to send email "${options.subject}" → ${options.to}: ${
-          (err as Error).message
-        }`,
+        `Failed to send email "${options.subject}" → ${options.to}: ${(err as Error).message}`,
       );
     }
   }
@@ -112,11 +110,7 @@ export class MailService {
    * resetUrl contains the raw token — placed only in the email body, never logged.
    * The link expires in 1 hour.
    */
-  async sendPasswordReset(user: {
-    name: string;
-    email: string;
-    resetUrl: string;
-  }): Promise<void> {
+  async sendPasswordReset(user: { name: string; email: string; resetUrl: string }): Promise<void> {
     const html = await this.renderTemplate('password-reset', {
       name: user.name,
       resetUrl: user.resetUrl,
@@ -132,10 +126,7 @@ export class MailService {
    * Notifies an existing user that someone attempted to register with their email.
    * Lets them know their account is safe and prompts them to log in or reset if needed.
    */
-  async sendAccountExistsNotice(user: {
-    name: string;
-    email: string;
-  }): Promise<void> {
+  async sendAccountExistsNotice(user: { name: string; email: string }): Promise<void> {
     const html = await this.renderTemplate('account-exists-notice', {
       name: user.name,
     });

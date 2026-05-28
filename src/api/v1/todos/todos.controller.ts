@@ -11,13 +11,7 @@ import {
   Post,
   Query,
 } from '@nestjs/common';
-import {
-  ApiBearerAuth,
-  ApiOperation,
-  ApiParam,
-  ApiResponse,
-  ApiTags,
-} from '@nestjs/swagger';
+import { ApiBearerAuth, ApiOperation, ApiParam, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { TodosService } from './todos.service';
 import { CreateTodoDto } from './dto/create-todo.dto';
 import { UpdateTodoDto } from './dto/update-todo.dto';
@@ -55,10 +49,7 @@ export class TodosController {
     description: '{ data: Todo[], total, page, limit }',
   })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
-  async findAll(
-    @CurrentUser('id') userId: number,
-    @Query() query: QueryTodoDto,
-  ) {
+  async findAll(@CurrentUser('id') userId: number, @Query() query: QueryTodoDto) {
     return this.todosService.findAll(userId, query);
   }
 
@@ -73,10 +64,7 @@ export class TodosController {
   @ApiResponse({ status: 200, description: 'Todo found' })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   @ApiResponse({ status: 404, description: 'Todo not found' })
-  async findOne(
-    @CurrentUser('id') userId: number,
-    @Param('id', ParseIntPipe) id: number,
-  ) {
+  async findOne(@CurrentUser('id') userId: number, @Param('id', ParseIntPipe) id: number) {
     return this.todosService.findOne(id, userId);
   }
 
@@ -110,10 +98,7 @@ export class TodosController {
   @ApiResponse({ status: 200, description: 'Todo soft-deleted' })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   @ApiResponse({ status: 404, description: 'Todo not found' })
-  async remove(
-    @CurrentUser('id') userId: number,
-    @Param('id', ParseIntPipe) id: number,
-  ) {
+  async remove(@CurrentUser('id') userId: number, @Param('id', ParseIntPipe) id: number) {
     return this.todosService.remove(id, userId);
   }
 }

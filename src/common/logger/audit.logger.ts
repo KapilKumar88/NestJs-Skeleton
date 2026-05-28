@@ -47,23 +47,13 @@ export class AuditLogger {
    * A previously rotated (revoked) refresh token was replayed — likely theft.
    * The entire token family is revoked on this event.
    */
-  static refreshReuseDetected(
-    userId: number,
-    family: string,
-    requestId?: string,
-  ): void {
-    this.logger.warn(
-      `[REFRESH_REUSE] userId=${userId} family=${family} rid=${
-        requestId ?? '-'
-      }`,
-    );
+  static refreshReuseDetected(userId: number, family: string, requestId?: string): void {
+    this.logger.warn(`[REFRESH_REUSE] userId=${userId} family=${family} rid=${requestId ?? '-'}`);
   }
 
   /** Email verification token consumed successfully. */
   static emailVerified(userId: number, requestId?: string): void {
-    this.logger.log(
-      `[EMAIL_VERIFIED] userId=${userId} rid=${requestId ?? '-'}`,
-    );
+    this.logger.log(`[EMAIL_VERIFIED] userId=${userId} rid=${requestId ?? '-'}`);
   }
 
   /** Password-reset link was requested (always logged, email omitted). */
@@ -74,23 +64,17 @@ export class AuditLogger {
 
   /** Password was successfully reset. */
   static passwordResetCompleted(userId: number, requestId?: string): void {
-    this.logger.log(
-      `[PASSWORD_RESET_DONE] userId=${userId} rid=${requestId ?? '-'}`,
-    );
+    this.logger.log(`[PASSWORD_RESET_DONE] userId=${userId} rid=${requestId ?? '-'}`);
   }
 
   /** Account locked after too many failed login attempts. */
   static accountLocked(userId: number, requestId?: string): void {
-    this.logger.warn(
-      `[ACCOUNT_LOCKED] userId=${userId} rid=${requestId ?? '-'}`,
-    );
+    this.logger.warn(`[ACCOUNT_LOCKED] userId=${userId} rid=${requestId ?? '-'}`);
   }
 
   /** Account unlocked after lockout period expired. */
   static accountUnlocked(userId: number, requestId?: string): void {
-    this.logger.log(
-      `[ACCOUNT_UNLOCKED] userId=${userId} rid=${requestId ?? '-'}`,
-    );
+    this.logger.log(`[ACCOUNT_UNLOCKED] userId=${userId} rid=${requestId ?? '-'}`);
   }
 
   /** JWT guard rejected an unauthenticated/unauthorised request. */

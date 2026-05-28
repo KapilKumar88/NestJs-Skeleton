@@ -1,13 +1,13 @@
 import { Logger } from '@nestjs/common';
 import { Processor, WorkerHost } from '@nestjs/bullmq';
-import { Job } from 'bullmq';
+import { type Job } from 'bullmq';
 import { MailService } from '../../services/mail/mail.service';
 import {
-  AnyEmailJob,
-  WelcomeEmailJob,
-  VerifyEmailJob,
-  AccountExistsNoticeJob,
-  PasswordResetJob,
+  type AnyEmailJob,
+  type WelcomeEmailJob,
+  type VerifyEmailJob,
+  type AccountExistsNoticeJob,
+  type PasswordResetJob,
 } from '../../types/email-queue.types';
 import { EMAIL_QUEUE, EmailJobName } from '../../common/constants';
 

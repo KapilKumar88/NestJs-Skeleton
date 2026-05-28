@@ -1,20 +1,5 @@
-import {
-  Body,
-  Controller,
-  Get,
-  Headers,
-  HttpCode,
-  HttpStatus,
-  Post,
-  Query,
-} from '@nestjs/common';
-import {
-  ApiBearerAuth,
-  ApiOperation,
-  ApiQuery,
-  ApiResponse,
-  ApiTags,
-} from '@nestjs/swagger';
+import { Body, Controller, Get, Headers, HttpCode, HttpStatus, Post, Query } from '@nestjs/common';
+import { ApiBearerAuth, ApiOperation, ApiQuery, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { Throttle, seconds } from '@nestjs/throttler';
 import { AuthService } from './auth.service';
 import { RegisterDto } from './dto/register.dto';
@@ -41,9 +26,7 @@ export class AuthController {
   @Public()
   @Post('register')
   @HttpCode(HttpStatus.CREATED)
-  @ResponseMessage(
-    'If this email is new to us, a verification link has been sent',
-  )
+  @ResponseMessage('If this email is new to us, a verification link has been sent')
   @ApiOperation({
     summary: 'Register a new user',
     description:
@@ -52,15 +35,11 @@ export class AuthController {
   })
   @ApiResponse({
     status: 201,
-    description:
-      'Request accepted — check your email for the verification link',
+    description: 'Request accepted — check your email for the verification link',
   })
   @ApiResponse({ status: 422, description: 'Validation error' })
   @ApiResponse({ status: 429, description: 'Too many requests' })
-  async register(
-    @Body() dto: RegisterDto,
-    @Headers('x-request-id') requestId?: string,
-  ) {
+  async register(@Body() dto: RegisterDto, @Headers('x-request-id') requestId?: string) {
     return this.authService.register(dto, requestId);
   }
 
@@ -83,10 +62,7 @@ export class AuthController {
   })
   @ApiResponse({ status: 422, description: 'Validation error' })
   @ApiResponse({ status: 429, description: 'Too many requests' })
-  async login(
-    @Body() dto: LoginDto,
-    @Headers('x-request-id') requestId?: string,
-  ) {
+  async login(@Body() dto: LoginDto, @Headers('x-request-id') requestId?: string) {
     return this.authService.login(dto, requestId);
   }
 
@@ -100,8 +76,7 @@ export class AuthController {
   @ResponseMessage('Email verified successfully. You may now log in.')
   @ApiOperation({
     summary: 'Verify email address via token from verification email',
-    description:
-      'Consumes the single-use token. Returns 401 for any invalid or expired token.',
+    description: 'Consumes the single-use token. Returns 401 for any invalid or expired token.',
   })
   @ApiQuery({
     name: 'token',
@@ -114,10 +89,7 @@ export class AuthController {
     description: 'Invalid or expired verification token',
   })
   @ApiResponse({ status: 429, description: 'Too many requests' })
-  async verifyEmail(
-    @Query() dto: VerifyEmailDto,
-    @Headers('x-request-id') requestId?: string,
-  ) {
+  async verifyEmail(@Query() dto: VerifyEmailDto, @Headers('x-request-id') requestId?: string) {
     return this.authService.verifyEmail(dto, requestId);
   }
 
@@ -128,9 +100,7 @@ export class AuthController {
   @Public()
   @Post('resend-verification')
   @HttpCode(HttpStatus.OK)
-  @ResponseMessage(
-    'If your email is registered and unverified, a new link has been sent',
-  )
+  @ResponseMessage('If your email is registered and unverified, a new link has been sent')
   @ApiOperation({
     summary: 'Resend email verification link',
     description:
@@ -156,9 +126,7 @@ export class AuthController {
   @Public()
   @Post('forgot-password')
   @HttpCode(HttpStatus.OK)
-  @ResponseMessage(
-    'If an account with that email exists, a reset link has been sent',
-  )
+  @ResponseMessage('If an account with that email exists, a reset link has been sent')
   @ApiOperation({
     summary: 'Request a password reset link',
     description:
@@ -184,9 +152,7 @@ export class AuthController {
   @Public()
   @Post('reset-password')
   @HttpCode(HttpStatus.OK)
-  @ResponseMessage(
-    'Password reset successfully. Please log in with your new password.',
-  )
+  @ResponseMessage('Password reset successfully. Please log in with your new password.')
   @ApiOperation({
     summary: 'Reset password using a valid reset token',
     description:
@@ -202,10 +168,7 @@ export class AuthController {
   })
   @ApiResponse({ status: 422, description: 'Validation error' })
   @ApiResponse({ status: 429, description: 'Too many requests' })
-  async resetPassword(
-    @Body() dto: ResetPasswordDto,
-    @Headers('x-request-id') requestId?: string,
-  ) {
+  async resetPassword(@Body() dto: ResetPasswordDto, @Headers('x-request-id') requestId?: string) {
     return this.authService.resetPassword(dto, requestId);
   }
 
@@ -226,10 +189,7 @@ export class AuthController {
   })
   @ApiResponse({ status: 401, description: 'Invalid or expired refresh token' })
   @ApiResponse({ status: 429, description: 'Too many requests' })
-  async refresh(
-    @Body() dto: RefreshTokenDto,
-    @Headers('x-request-id') requestId?: string,
-  ) {
+  async refresh(@Body() dto: RefreshTokenDto, @Headers('x-request-id') requestId?: string) {
     return this.authService.refreshTokens(dto, requestId);
   }
 

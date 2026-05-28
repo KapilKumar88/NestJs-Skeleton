@@ -1,5 +1,5 @@
 import { NotFoundException } from '@nestjs/common';
-import { Test, TestingModule } from '@nestjs/testing';
+import { Test, type TestingModule } from '@nestjs/testing';
 import { TodosService } from './todos.service';
 import { TodosRepository } from './todos.repository';
 
@@ -41,9 +41,7 @@ describe('TodosService', () => {
     }).compile();
 
     service = module.get<TodosService>(TodosService);
-    repo = module.get<TodosRepository>(
-      TodosRepository,
-    ) as jest.Mocked<TodosRepository>;
+    repo = module.get<TodosRepository>(TodosRepository) as jest.Mocked<TodosRepository>;
   });
 
   afterEach(() => jest.clearAllMocks());
@@ -94,9 +92,9 @@ describe('TodosService', () => {
     it('throws NotFoundException and does NOT update when userId does not match', async () => {
       repo.findOne.mockResolvedValue(null); // ownership check fails
 
-      await expect(
-        service.update(1, 99, { title: 'Hack' } as any),
-      ).rejects.toThrow(NotFoundException);
+      await expect(service.update(1, 99, { title: 'Hack' } as any)).rejects.toThrow(
+        NotFoundException,
+      );
       // Ensure repository update was never called (no partial-write exploit)
       expect(repo.update).not.toHaveBeenCalled();
     });

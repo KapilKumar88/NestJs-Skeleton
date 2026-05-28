@@ -1,8 +1,8 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { TodosRepository } from './todos.repository';
-import { CreateTodoDto } from './dto/create-todo.dto';
-import { UpdateTodoDto } from './dto/update-todo.dto';
-import { QueryTodoDto } from './dto/query-todo.dto';
+import { type CreateTodoDto } from './dto/create-todo.dto';
+import { type UpdateTodoDto } from './dto/update-todo.dto';
+import { type QueryTodoDto } from './dto/query-todo.dto';
 
 @Injectable()
 export class TodosService {

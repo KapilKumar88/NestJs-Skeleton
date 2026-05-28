@@ -1,9 +1,4 @@
-import {
-  Injectable,
-  Logger,
-  OnModuleDestroy,
-  OnModuleInit,
-} from '@nestjs/common';
+import { Injectable, Logger, type OnModuleDestroy, type OnModuleInit } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import Redis from 'ioredis';
 
@@ -23,23 +18,17 @@ export class RedisService implements OnModuleInit, OnModuleDestroy {
     this.client = new Redis({
       host: this.configService.get<string>('redis.host'),
       port: this.configService.get<number>('redis.port'),
-      password: this.configService.get<string>('redis.password') || undefined,
+      password: this.configService.get<string>('redis.password') ?? undefined,
       lazyConnect: true,
     });
 
     this.client.on('connect', () => this.logger.log('Redis connected'));
-    this.client.on('error', (err) =>
-      this.logger.error(`Redis error: ${err.message}`),
-    );
+    this.client.on('error', (err) => this.logger.error(`Redis error: ${err.message}`));
 
     // Connect lazily — don't throw if Redis is unreachable on startup
     this.client
       .connect()
-      .catch((err) =>
-        this.logger.warn(
-          `Redis initial connect failed (non-fatal): ${err.message}`,
-        ),
-      );
+      .catch((err) => this.logger.warn(`Redis initial connect failed (non-fatal): ${err.message}`));
   }
 
   async onModuleDestroy() {

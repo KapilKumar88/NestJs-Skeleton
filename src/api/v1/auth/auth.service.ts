@@ -1,24 +1,22 @@
 import { Injectable, Logger, UnauthorizedException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { JwtService } from '@nestjs/jwt';
+import { JwtService, type JwtSignOptions } from '@nestjs/jwt';
 import { InjectQueue } from '@nestjs/bullmq';
 import { Queue } from 'bullmq';
-import * as bcrypt from 'bcrypt';
+import * as bcrypt from 'bcryptjs';
 import { TokenType } from '@prisma/client';
 import { AuthRepository } from './auth.repository';
-import { RegisterDto } from './dto/register.dto';
-import { LoginDto } from './dto/login.dto';
-import { RefreshTokenDto } from './dto/refresh-token.dto';
-import { VerifyEmailDto } from './dto/verify-email.dto';
-import { ResendVerificationDto } from './dto/resend-verification.dto';
-import { ForgotPasswordDto } from './dto/forgot-password.dto';
-import { ResetPasswordDto } from './dto/reset-password.dto';
+import { type RegisterDto } from './dto/register.dto';
+import { type LoginDto } from './dto/login.dto';
+import { type RefreshTokenDto } from './dto/refresh-token.dto';
+import { type VerifyEmailDto } from './dto/verify-email.dto';
+import { type ResendVerificationDto } from './dto/resend-verification.dto';
+import { type ForgotPasswordDto } from './dto/forgot-password.dto';
+import { type ResetPasswordDto } from './dto/reset-password.dto';
 import { EMAIL_QUEUE, EmailJobName } from '../../../common/constants';
-import {
-  VERIFY_TOKEN_TTL_MS,
-  RESET_TOKEN_TTL_MS,
-} from '../../../common/constants/auth.constants';
+import { VERIFY_TOKEN_TTL_MS, RESET_TOKEN_TTL_MS } from '../../../common/constants/auth.constants';
 import { AuditLogger } from '../../../common/logger/audit.logger';
+import { type LoginResponse, type TokenPair } from '../../../types/auth.types';
 
 @Injectable()
 export class AuthService {
@@ -49,15 +47,14 @@ export class AuthService {
 
     if (existing) {
       // Duplicate: send a notice to the account owner, reveal nothing to caller
-      this.emailQueue
+      // void = intentional fire-and-forget; error is caught and logged
+      void this.emailQueue
         .add(EmailJobName.ACCOUNT_EXISTS_NOTICE, {
           email: existing.email,
           name: existing.name,
         })
         .catch((err: Error) =>
-          this.logger.warn(
-            `Failed to enqueue account-exists notice: ${err.message}`,
-          ),
+          this.logger.warn(`Failed to enqueue account-exists notice: ${err.message}`),
         );
     } else {
       const salt = await bcrypt.genSalt();
@@ -80,16 +77,14 @@ export class AuthService {
       // verifyUrl contains the raw token — sent in the email, never logged
       const verifyUrl = `${appUrl}/v1/auth/verify-email?token=${rawToken}`;
 
-      this.emailQueue
+      void this.emailQueue
         .add(EmailJobName.VERIFY_EMAIL, {
           email: user.email,
           name: user.name,
           verifyUrl,
         })
         .catch((err: Error) =>
-          this.logger.warn(
-            `Failed to enqueue verification email: ${err.message}`,
-          ),
+          this.logger.warn(`Failed to enqueue verification email: ${err.message}`),
         );
     }
 
@@ -113,7 +108,7 @@ export class AuthService {
    *     (prevents enumeration: attacker cannot learn "unverified" without knowing pw)
    *  5. Success         → reset counter, issue tokens, audit
    */
-  async login(dto: LoginDto, requestId?: string) {
+  async login(dto: LoginDto, requestId?: string): Promise<LoginResponse> {
     const user = await this.authRepository.findByEmail(dto.email);
     if (!user) {
       AuditLogger.loginFailure('user_not_found', requestId);
@@ -132,14 +127,10 @@ export class AuthService {
     // ── Password check ────────────────────────────────────────────────────────
     const passwordMatch = await bcrypt.compare(dto.password, user.password);
     if (!passwordMatch) {
-      const maxAttempts =
-        this.configService.get<number>('security.maxLoginAttempts') ?? 5;
-      const lockoutMinutes =
-        this.configService.get<number>('security.lockoutMinutes') ?? 15;
+      const maxAttempts = this.configService.get<number>('security.maxLoginAttempts') ?? 5;
+      const lockoutMinutes = this.configService.get<number>('security.lockoutMinutes') ?? 15;
 
-      const updated = await this.authRepository.incrementFailedLoginAttempts(
-        user.id,
-      );
+      const updated = await this.authRepository.incrementFailedLoginAttempts(user.id);
 
       if (updated.failedLoginAttempts >= maxAttempts) {
         const lockedUntil = new Date(Date.now() + lockoutMinutes * 60 * 1000);
@@ -155,9 +146,7 @@ export class AuthService {
     // Revealed ONLY after a correct password — prevents enumeration.
     if (!user.emailVerified) {
       AuditLogger.loginFailure('email_not_verified', requestId);
-      throw new UnauthorizedException(
-        'Please verify your email address before logging in',
-      );
+      throw new UnauthorizedException('Please verify your email address before logging in');
     }
 
     // ── Success ───────────────────────────────────────────────────────────────
@@ -166,11 +155,7 @@ export class AuthService {
 
     // All three writes are independent — run in parallel
     await Promise.all([
-      this.authRepository.issueRefreshToken(
-        user.id,
-        tokens.refreshToken,
-        refreshExpiresAt,
-      ),
+      this.authRepository.issueRefreshToken(user.id, tokens.refreshToken, refreshExpiresAt),
       this.authRepository.resetFailedLoginAttempts(user.id),
       this.authRepository.updateLastLogin(user.id),
     ]);
@@ -210,10 +195,7 @@ export class AuthService {
    * Enumeration-safe: always returns the same response regardless of whether
    * the email exists, is already verified, or is unverified.
    */
-  async resendVerification(
-    dto: ResendVerificationDto,
-    _requestId?: string,
-  ): Promise<null> {
+  async resendVerification(dto: ResendVerificationDto, _requestId?: string): Promise<null> {
     // _requestId is intentionally unused here — it is logged at the controller level
 
     const user = await this.authRepository.findByEmail(dto.email);
@@ -229,16 +211,14 @@ export class AuthService {
       const appUrl = this.configService.get<string>('app.appUrl');
       const verifyUrl = `${appUrl}/v1/auth/verify-email?token=${rawToken}`;
 
-      this.emailQueue
+      void this.emailQueue
         .add(EmailJobName.VERIFY_EMAIL, {
           email: user.email,
           name: user.name,
           verifyUrl,
         })
         .catch((err: Error) =>
-          this.logger.warn(
-            `Failed to enqueue resend verification email: ${err.message}`,
-          ),
+          this.logger.warn(`Failed to enqueue resend verification email: ${err.message}`),
         );
     }
     // No else branch — same null is returned whether or not we acted
@@ -258,10 +238,7 @@ export class AuthService {
    *
    * The raw token is placed only in the email body — never logged.
    */
-  async forgotPassword(
-    dto: ForgotPasswordDto,
-    requestId?: string,
-  ): Promise<null> {
+  async forgotPassword(dto: ForgotPasswordDto, requestId?: string): Promise<null> {
     AuditLogger.passwordResetRequested(requestId);
 
     const user = await this.authRepository.findByEmail(dto.email);
@@ -278,16 +255,14 @@ export class AuthService {
       // resetUrl contains the raw token — sent in the email, never logged
       const resetUrl = `${appUrl}/reset-password?token=${rawToken}`;
 
-      this.emailQueue
+      void this.emailQueue
         .add(EmailJobName.PASSWORD_RESET, {
           email: user.email,
           name: user.name,
           resetUrl,
         })
         .catch((err: Error) =>
-          this.logger.warn(
-            `Failed to enqueue password-reset email: ${err.message}`,
-          ),
+          this.logger.warn(`Failed to enqueue password-reset email: ${err.message}`),
         );
     }
 
@@ -303,10 +278,7 @@ export class AuthService {
    *
    * Returns a generic 401 for any invalid/expired token — no per-case disclosure.
    */
-  async resetPassword(
-    dto: ResetPasswordDto,
-    requestId?: string,
-  ): Promise<null> {
+  async resetPassword(dto: ResetPasswordDto, requestId?: string): Promise<null> {
     const userId = await this.authRepository.findAndConsumeVerificationToken(
       dto.token,
       TokenType.PASSWORD_RESET,
@@ -316,16 +288,10 @@ export class AuthService {
       throw new UnauthorizedException('Invalid or expired reset token');
     }
 
-    const passwordHash = await bcrypt.hash(
-      dto.password,
-      await bcrypt.genSalt(),
-    );
+    const passwordHash = await bcrypt.hash(dto.password, await bcrypt.genSalt());
 
     // Atomically update password + revoke all sessions
-    await this.authRepository.resetPasswordAndRevokeSessions(
-      userId,
-      passwordHash,
-    );
+    await this.authRepository.resetPasswordAndRevokeSessions(userId, passwordHash);
 
     AuditLogger.passwordResetCompleted(userId, requestId);
     return null;
@@ -344,7 +310,7 @@ export class AuthService {
    *     - 'reuse'     → whole family revoked; likely token theft — audit + 401.
    *     - 'not_found' → token not in DB or expired → 401.
    */
-  async refreshTokens(dto: RefreshTokenDto, requestId?: string) {
+  async refreshTokens(dto: RefreshTokenDto, requestId?: string): Promise<TokenPair> {
     let payload: { sub: number; email: string };
 
     try {
@@ -356,8 +322,10 @@ export class AuthService {
     }
 
     const refreshExpiresAt = this.parseRefreshExpiresAt();
-    const { accessToken, refreshToken: newRawToken } =
-      await this.generateTokens(payload.sub, payload.email);
+    const { accessToken, refreshToken: newRawToken } = await this.generateTokens(
+      payload.sub,
+      payload.email,
+    );
 
     const result = await this.authRepository.rotateRefreshToken(
       dto.refreshToken,
@@ -368,9 +336,7 @@ export class AuthService {
     if (result.status === 'reuse') {
       // Likely token theft — entire family is already revoked by the repository
       AuditLogger.refreshReuseDetected(payload.sub, result.family, requestId);
-      throw new UnauthorizedException(
-        'Session invalidated — please log in again',
-      );
+      throw new UnauthorizedException('Session invalidated — please log in again');
     }
 
     if (result.status === 'not_found') {
@@ -387,11 +353,7 @@ export class AuthService {
    * Revokes the presented refresh token (specific session).
    * If no token is provided, revokes all sessions for the user (fallback).
    */
-  async logout(
-    userId: number,
-    rawRefreshToken?: string,
-    requestId?: string,
-  ): Promise<void> {
+  async logout(userId: number, rawRefreshToken?: string, requestId?: string): Promise<void> {
     if (rawRefreshToken) {
       await this.authRepository.revokeRefreshToken(rawRefreshToken);
     } else {
@@ -409,14 +371,15 @@ export class AuthService {
    * Both tokens carry `{ sub, email }`. Including `email` in the refresh payload
    * allows `refreshTokens` to regenerate an access token without a DB user lookup.
    */
-  private async generateTokens(userId: number, email: string) {
+  private async generateTokens(userId: number, email: string): Promise<TokenPair> {
     const payload = { sub: userId, email };
 
     const [accessToken, refreshToken] = await Promise.all([
       this.jwtService.signAsync(payload),
       this.jwtService.signAsync(payload, {
         secret: this.configService.get<string>('jwt.refreshSecret'),
-        expiresIn: this.configService.get<string>('jwt.refreshExpiresIn'),
+        // JWT_REFRESH_EXPIRES_IN is validated by Zod at startup — safe to assert StringValue
+        expiresIn: this.configService.get<string>('jwt.refreshExpiresIn') as JwtSignOptions['expiresIn'],
       }),
     ]);
 
@@ -429,8 +392,7 @@ export class AuthService {
    * Falls back to 7 days if the format is unrecognised.
    */
   private parseRefreshExpiresAt(): Date {
-    const expiresIn =
-      this.configService.get<string>('jwt.refreshExpiresIn') ?? '7d';
+    const expiresIn = this.configService.get<string>('jwt.refreshExpiresIn') ?? '7d';
     const match = /^(\d+)([dhms])?$/.exec(expiresIn);
     if (!match) return new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
     const value = Number.parseInt(match[1], 10);

@@ -1,12 +1,12 @@
 import {
-  ArgumentsHost,
+  type ArgumentsHost,
   Catch,
-  ExceptionFilter,
+  type ExceptionFilter,
   HttpException,
   HttpStatus,
   Logger,
 } from '@nestjs/common';
-import { Request, Response } from 'express';
+import { type Request, type Response } from 'express';
 import { PrismaClientKnownRequestError } from '@prisma/client/runtime/library';
 
 /**
@@ -35,8 +35,7 @@ export class HttpExceptionFilter implements ExceptionFilter {
     const request = ctx.getRequest<Request>();
 
     // Pull the correlation ID injected by RequestIdMiddleware
-    const requestId =
-      (request.headers['x-request-id'] as string | undefined) ?? '-';
+    const requestId = (request.headers['x-request-id'] as string | undefined) ?? '-';
 
     // All branches assign status; no safe default needed here
     let status: number;
@@ -80,8 +79,7 @@ export class HttpExceptionFilter implements ExceptionFilter {
     } else {
       // ── Non-Error throwables ────────────────────────────────────────────
       status = HttpStatus.INTERNAL_SERVER_ERROR;
-      const exceptionStr =
-        typeof exception === 'string' ? exception : JSON.stringify(exception);
+      const exceptionStr = typeof exception === 'string' ? exception : JSON.stringify(exception);
       this.logger.error(
         `[${requestId}] Unknown exception type ${request.method} ${request.url}: ${exceptionStr}`,
       );

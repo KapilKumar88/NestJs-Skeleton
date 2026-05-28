@@ -5,8 +5,8 @@ import { registerAs } from '@nestjs/config';
  * All read from env — never hardcoded.
  */
 export default registerAs('security', () => ({
-  throttleTtl: Number.parseInt(process.env.THROTTLE_TTL, 10) || 60,
-  throttleLimit: Number.parseInt(process.env.THROTTLE_LIMIT, 10) || 100,
-  maxLoginAttempts: Number.parseInt(process.env.MAX_LOGIN_ATTEMPTS, 10) || 5,
-  lockoutMinutes: Number.parseInt(process.env.LOCKOUT_MINUTES, 10) || 15,
+  throttleTtl: Number.parseInt(process.env.THROTTLE_TTL ?? '60', 10) || 60,
+  throttleLimit: Number.parseInt(process.env.THROTTLE_LIMIT ?? '100', 10) || 100,
+  maxLoginAttempts: Number.parseInt(process.env.MAX_LOGIN_ATTEMPTS ?? '5', 10) || 5,
+  lockoutMinutes: Number.parseInt(process.env.LOCKOUT_MINUTES ?? '15', 10) || 15,
 }));

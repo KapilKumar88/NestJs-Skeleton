@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
-import { Prisma, TokenType } from '@prisma/client';
-import * as bcrypt from 'bcrypt';
+import { type Prisma, type TokenType } from '@prisma/client';
+import * as bcrypt from 'bcryptjs';
 import * as crypto from 'node:crypto';
 import { PrismaService } from '../../../services/database/prisma.service';
 
@@ -51,11 +51,7 @@ export class AuthRepository {
    * Stores a new refresh token for a brand-new login session (new family UUID).
    * The raw token is hashed before storage — it is never persisted in plaintext.
    */
-  async issueRefreshToken(
-    userId: number,
-    rawToken: string,
-    expiresAt: Date,
-  ): Promise<void> {
+  async issueRefreshToken(userId: number, rawToken: string, expiresAt: Date): Promise<void> {
     const family = crypto.randomUUID();
     await this.prisma.refreshToken.create({
       data: {
@@ -82,11 +78,7 @@ export class AuthRepository {
     rawOldToken: string,
     rawNewToken: string,
     expiresAt: Date,
-  ): Promise<
-    | { status: 'ok' }
-    | { status: 'reuse'; family: string }
-    | { status: 'not_found' }
-  > {
+  ): Promise<{ status: 'ok' } | { status: 'reuse'; family: string } | { status: 'not_found' }> {
     const oldHash = this.hashToken(rawOldToken);
 
     // Find by hash; include slightly-expired records so reuse is detectable
@@ -163,16 +155,9 @@ export class AuthRepository {
    *    per user per type — prevents token accumulation).
    *  - Raw token MUST NOT be persisted or logged anywhere after this call.
    */
-  async createVerificationToken(
-    userId: number,
-    type: TokenType,
-    expiresAt: Date,
-  ): Promise<string> {
+  async createVerificationToken(userId: number, type: TokenType, expiresAt: Date): Promise<string> {
     const rawToken = crypto.randomBytes(48).toString('hex');
-    const tokenHash = crypto
-      .createHash('sha256')
-      .update(rawToken)
-      .digest('hex');
+    const tokenHash = crypto.createHash('sha256').update(rawToken).digest('hex');
 
     // Remove any pre-existing tokens of the same type (cleanup + one-token-per-type)
     await this.prisma.verificationToken.deleteMany({ where: { userId, type } });
@@ -189,14 +174,8 @@ export class AuthRepository {
    * record (single-use), and returns the associated userId.
    * Returns `null` if the token is not found or has expired.
    */
-  async findAndConsumeVerificationToken(
-    rawToken: string,
-    type: TokenType,
-  ): Promise<number | null> {
-    const tokenHash = crypto
-      .createHash('sha256')
-      .update(rawToken)
-      .digest('hex');
+  async findAndConsumeVerificationToken(rawToken: string, type: TokenType): Promise<number | null> {
+    const tokenHash = crypto.createHash('sha256').update(rawToken).digest('hex');
 
     const record = await this.prisma.verificationToken.findFirst({
       where: { tokenHash, type },
@@ -257,10 +236,7 @@ export class AuthRepository {
    *
    * revoke all sessions on password change.
    */
-  async resetPasswordAndRevokeSessions(
-    userId: number,
-    passwordHash: string,
-  ): Promise<void> {
+  async resetPasswordAndRevokeSessions(userId: number, passwordHash: string): Promise<void> {
     await this.prisma.$transaction([
       this.prisma.user.update({
         where: { id: userId },

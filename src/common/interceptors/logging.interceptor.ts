@@ -1,13 +1,13 @@
 import {
-  CallHandler,
-  ExecutionContext,
+  type CallHandler,
+  type ExecutionContext,
   Injectable,
   Logger,
-  NestInterceptor,
+  type NestInterceptor,
 } from '@nestjs/common';
-import { Observable } from 'rxjs';
+import { type Observable } from 'rxjs';
 import { tap } from 'rxjs/operators';
-import { Request, Response } from 'express';
+import { type Request, type Response } from 'express';
 
 /**
  * Logs every HTTP request/response with timing and the correlation request ID
@@ -20,11 +20,10 @@ import { Request, Response } from 'express';
 export class LoggingInterceptor implements NestInterceptor {
   private readonly logger = new Logger('HTTP');
 
-  intercept(context: ExecutionContext, next: CallHandler): Observable<any> {
+  intercept(context: ExecutionContext, next: CallHandler): Observable<unknown> {
     const req = context.switchToHttp().getRequest<Request>();
     const { method, originalUrl } = req;
-    const requestId =
-      (req.headers['x-request-id'] as string | undefined) ?? '-';
+    const requestId = (req.headers['x-request-id'] as string | undefined) ?? '-';
     const start = Date.now();
 
     return next.handle().pipe(

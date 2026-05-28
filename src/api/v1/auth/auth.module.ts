@@ -1,6 +1,6 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
-import { JwtModule } from '@nestjs/jwt';
+import { JwtModule, type JwtSignOptions } from '@nestjs/jwt';
 import { AuthController } from './auth.controller';
 import { AuthService } from './auth.service';
 import { AuthRepository } from './auth.repository';
@@ -15,7 +15,9 @@ import { EmailQueueModule } from '../../../queues/email/email.queue.module';
       useFactory: (config: ConfigService) => ({
         secret: config.get<string>('jwt.secret'),
         signOptions: {
-          expiresIn: config.get<string>('jwt.expiresIn'),
+          // ConfigService returns string; @nestjs/jwt@11 requires ms.StringValue — safe cast
+          // since JWT_EXPIRES_IN is validated by Zod at startup (e.g. '15m', '1h').
+          expiresIn: config.get<string>('jwt.expiresIn') as JwtSignOptions['expiresIn'],
         },
       }),
     }),

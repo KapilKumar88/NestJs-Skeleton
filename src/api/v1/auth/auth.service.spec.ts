@@ -10,12 +10,12 @@
  *  - No tokens issued at registration
  */
 
-import { Test, TestingModule } from '@nestjs/testing';
+import { Test, type TestingModule } from '@nestjs/testing';
 import { UnauthorizedException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
 import { getQueueToken } from '@nestjs/bullmq';
-import * as bcrypt from 'bcrypt';
+import * as bcrypt from 'bcryptjs';
 
 import { AuthService } from './auth.service';
 import { AuthRepository } from './auth.repository';
@@ -23,8 +23,8 @@ import { EMAIL_QUEUE } from '../../../queues/email/email.processor';
 import { buildUser } from '../../../test/factories/user.factory';
 
 // ─── bcrypt mock ──────────────────────────────────────────────────────────────
-// Hoisted by Jest; replaces bcrypt for all imports in this test run.
-jest.mock('bcrypt', () => ({
+// Hoisted by Jest; replaces bcryptjs for all imports in this test run.
+jest.mock('bcryptjs', () => ({
   genSalt: jest.fn().mockResolvedValue('mock-salt'),
   hash: jest.fn().mockResolvedValue('$2b$10$mocked-hash'),
   compare: jest.fn().mockResolvedValue(false), // default: wrong password
@@ -254,13 +254,9 @@ describe('AuthService (security)', () => {
         failedLoginAttempts: 1,
       });
 
-      await expect(service.login(dto as any)).rejects.toThrow(
-        UnauthorizedException,
-      );
+      await expect(service.login(dto as any)).rejects.toThrow(UnauthorizedException);
 
-      expect(repo.incrementFailedLoginAttempts).toHaveBeenCalledWith(
-        verifiedUser.id,
-      );
+      expect(repo.incrementFailedLoginAttempts).toHaveBeenCalledWith(verifiedUser.id);
     });
 
     it('locks the account after MAX_LOGIN_ATTEMPTS (5) consecutive wrong-password failures', async () => {
@@ -272,14 +268,9 @@ describe('AuthService (security)', () => {
         failedLoginAttempts: 5, // == maxLoginAttempts
       });
 
-      await expect(service.login(dto as any)).rejects.toThrow(
-        UnauthorizedException,
-      );
+      await expect(service.login(dto as any)).rejects.toThrow(UnauthorizedException);
 
-      expect(repo.lockAccount).toHaveBeenCalledWith(
-        verifiedUser.id,
-        expect.any(Date),
-      );
+      expect(repo.lockAccount).toHaveBeenCalledWith(verifiedUser.id, expect.any(Date));
     });
 
     it('does NOT lock the account when failures are below the threshold', async () => {
@@ -290,9 +281,7 @@ describe('AuthService (security)', () => {
         failedLoginAttempts: 3, // < maxLoginAttempts
       });
 
-      await expect(service.login(dto as any)).rejects.toThrow(
-        UnauthorizedException,
-      );
+      await expect(service.login(dto as any)).rejects.toThrow(UnauthorizedException);
 
       expect(repo.lockAccount).not.toHaveBeenCalled();
     });
@@ -303,9 +292,7 @@ describe('AuthService (security)', () => {
       mockBcryptCompare.mockResolvedValueOnce(true); // correct password
 
       await expect(service.login(dto as any)).rejects.toThrow(
-        new UnauthorizedException(
-          'Please verify your email address before logging in',
-        ),
+        new UnauthorizedException('Please verify your email address before logging in'),
       );
     });
 
@@ -320,9 +307,7 @@ describe('AuthService (security)', () => {
         accessToken: expect.any(String),
         refreshToken: expect.any(String),
       });
-      expect(repo.resetFailedLoginAttempts).toHaveBeenCalledWith(
-        verifiedUser.id,
-      );
+      expect(repo.resetFailedLoginAttempts).toHaveBeenCalledWith(verifiedUser.id);
       expect(repo.issueRefreshToken).toHaveBeenCalledWith(
         verifiedUser.id,
         expect.any(String),
@@ -392,11 +377,7 @@ describe('AuthService (security)', () => {
       await service.refreshTokens(dto as any);
       const after = new Date();
 
-      const [oldToken, , expiry] = repo.rotateRefreshToken.mock.calls[0] as [
-        string,
-        string,
-        Date,
-      ];
+      const [oldToken, , expiry] = repo.rotateRefreshToken.mock.calls[0] as [string, string, Date];
       expect(oldToken).toBe(dto.refreshToken);
       expect(expiry.getTime()).toBeGreaterThan(before.getTime());
       expect(expiry.getTime()).toBeGreaterThan(after.getTime()); // expiry is in the future
@@ -454,8 +435,11 @@ describe('AuthService (security)', () => {
 
       await service.forgotPassword(dto as any);
 
-      const [, , expiresAt] = repo.createVerificationToken.mock
-        .calls[0] as unknown as [number, string, Date];
+      const [, , expiresAt] = repo.createVerificationToken.mock.calls[0] as unknown as [
+        number,
+        string,
+        Date,
+      ];
       const ttlMs = expiresAt.getTime() - before;
       expect(ttlMs).toBeGreaterThan(59 * 60 * 1000); // at least 59 min
       expect(ttlMs).toBeLessThan(61 * 60 * 1000); // at most 61 min
@@ -468,9 +452,7 @@ describe('AuthService (security)', () => {
 
       await service.forgotPassword(dto as any);
 
-      const allLogs = [...warnSpy.mock.calls, ...logSpy.mock.calls]
-        .flat()
-        .join(' ');
+      const allLogs = [...warnSpy.mock.calls, ...logSpy.mock.calls].flat().join(' ');
       expect(allLogs).not.toContain(dto.email);
       expect(allLogs).not.toContain('raw-token-96hex');
     });
@@ -494,9 +476,7 @@ describe('AuthService (security)', () => {
     it('does NOT update the password when the token is invalid', async () => {
       repo.findAndConsumeVerificationToken.mockResolvedValue(null);
 
-      await expect(service.resetPassword(dto as any)).rejects.toThrow(
-        UnauthorizedException,
-      );
+      await expect(service.resetPassword(dto as any)).rejects.toThrow(UnauthorizedException);
 
       expect(mockBcryptHash).not.toHaveBeenCalled();
       expect(repo.resetPasswordAndRevokeSessions).not.toHaveBeenCalled();
@@ -519,14 +499,8 @@ describe('AuthService (security)', () => {
 
       await service.resetPassword(dto as any);
 
-      expect(mockBcryptHash).toHaveBeenCalledWith(
-        dto.password,
-        expect.anything(),
-      );
-      expect(repo.resetPasswordAndRevokeSessions).toHaveBeenCalledWith(
-        1,
-        '$2b$10$mocked-hash',
-      );
+      expect(mockBcryptHash).toHaveBeenCalledWith(dto.password, expect.anything());
+      expect(repo.resetPasswordAndRevokeSessions).toHaveBeenCalledWith(1, '$2b$10$mocked-hash');
     });
 
     it('returns null on success (uniform response)', async () => {
@@ -556,9 +530,7 @@ describe('AuthService (security)', () => {
     it('does NOT mark the user verified when the token is invalid', async () => {
       repo.findAndConsumeVerificationToken.mockResolvedValue(null);
 
-      await expect(service.verifyEmail(dto as any)).rejects.toThrow(
-        UnauthorizedException,
-      );
+      await expect(service.verifyEmail(dto as any)).rejects.toThrow(UnauthorizedException);
 
       expect(repo.markEmailVerified).not.toHaveBeenCalled();
     });

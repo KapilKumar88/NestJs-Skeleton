@@ -13,9 +13,7 @@ import { z } from 'zod';
 const envSchema = z
   .object({
     // ── App ────────────────────────────────────────────────────────────
-    NODE_ENV: z
-      .enum(['development', 'test', 'production'])
-      .default('development'),
+    NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
     PORT: z.coerce.number().int().min(1).max(65535).default(3030),
 
     // ── Database ───────────────────────────────────────────────────────
@@ -24,9 +22,7 @@ const envSchema = z
     // ── JWT — min 32 chars to ensure sufficient entropy ────────────────
     JWT_SECRET: z.string().min(32, 'JWT_SECRET must be at least 32 characters'),
     JWT_EXPIRES_IN: z.string().default('15m'),
-    JWT_REFRESH_SECRET: z
-      .string()
-      .min(32, 'JWT_REFRESH_SECRET must be at least 32 characters'),
+    JWT_REFRESH_SECRET: z.string().min(32, 'JWT_REFRESH_SECRET must be at least 32 characters'),
     JWT_REFRESH_EXPIRES_IN: z.string().default('7d'),
 
     // ── Redis ──────────────────────────────────────────────────────────
@@ -71,9 +67,7 @@ export function validateEnv(config: Record<string, unknown>): EnvConfig {
     const messages = result.error.issues
       .map((issue) => `  ${issue.path.join('.')}: ${issue.message}`)
       .join('\n');
-    throw new Error(
-      `\n[Config] Environment variable validation failed:\n${messages}\n`,
-    );
+    throw new Error(`\n[Config] Environment variable validation failed:\n${messages}\n`);
   }
   return result.data;
 }

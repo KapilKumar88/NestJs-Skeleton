@@ -1,4 +1,4 @@
-import { MiddlewareConsumer, Module, NestModule } from '@nestjs/common';
+import { type MiddlewareConsumer, Module, type NestModule } from '@nestjs/common';
 import { APP_GUARD } from '@nestjs/core';
 import { RequestIdMiddleware } from './common/middleware/request-id.middleware';
 import { ConfigModule, ConfigService } from '@nestjs/config';
@@ -29,14 +29,7 @@ import securityConfig from './config/security.config';
   imports: [
     ConfigModule.forRoot({
       isGlobal: true,
-      load: [
-        appConfig,
-        databaseConfig,
-        jwtConfig,
-        redisConfig,
-        mailConfig,
-        securityConfig,
-      ],
+      load: [appConfig, databaseConfig, jwtConfig, redisConfig, mailConfig, securityConfig],
       // Fail closed: app refuses to boot if any required secret is missing or weak
       validate: validateEnv,
     }),

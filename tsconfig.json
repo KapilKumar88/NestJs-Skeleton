@@ -7,16 +7,24 @@
     "experimentalDecorators": true,
     "allowSyntheticDefaultImports": true,
     "esModuleInterop": true,
-    "target": "es2017",
+    "target": "ES2021",
     "sourceMap": true,
     "outDir": "./dist",
     "baseUrl": "./",
     "incremental": true,
     "skipLibCheck": true,
-    "strictNullChecks": false,
-    "noImplicitAny": false,
-    "strictBindCallApply": false,
-    "forceConsistentCasingInFileNames": false,
-    "noFallthroughCasesInSwitch": false
+
+    // ── Strict type safety ────────────────────────────────────────────────────
+    "strictNullChecks": true,           // catch nullable/undefined misuse
+    "noImplicitAny": true,              // every value must have an explicit type
+    "strictBindCallApply": true,        // typed .bind/.call/.apply
+    "forceConsistentCasingInFileNames": true,
+
+    // ── Dead-code detection ───────────────────────────────────────────────────
+    "noUnusedLocals": true,             // error on unused local variables
+    "noUnusedParameters": true,         // error on unused function params (prefix _ to exempt)
+
+    // ── Control-flow safety ───────────────────────────────────────────────────
+    "noFallthroughCasesInSwitch": true  // require break/return in every switch case
   }
 }

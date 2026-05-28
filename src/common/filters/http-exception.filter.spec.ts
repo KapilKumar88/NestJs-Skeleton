@@ -1,4 +1,4 @@
-import { ArgumentsHost, HttpException, HttpStatus } from '@nestjs/common';
+import { type ArgumentsHost, HttpException, HttpStatus } from '@nestjs/common';
 import { PrismaClientKnownRequestError } from '@prisma/client/runtime/library';
 import { HttpExceptionFilter } from './http-exception.filter';
 
@@ -19,18 +19,14 @@ const buildHost = (requestId?: string): ArgumentsHost => {
   } as unknown as ArgumentsHost;
 };
 
-const captureResponse = (
-  filter: HttpExceptionFilter,
-  exception: unknown,
-  requestId?: string,
-) => {
+const captureResponse = (filter: HttpExceptionFilter, exception: unknown, requestId?: string) => {
   const host = buildHost(requestId);
   filter.catch(exception, host);
   const httpContext = host.switchToHttp();
   const res = httpContext.getResponse<{ status: jest.Mock }>();
   const statusCall = res.status.mock.calls[0][0] as number;
-  const body = (res.status.mock.results[0].value as { json: jest.Mock }).json
-    .mock.calls[0][0] as Record<string, unknown>;
+  const body = (res.status.mock.results[0].value as { json: jest.Mock }).json.mock
+    .calls[0][0] as Record<string, unknown>;
   return { status: statusCall, body };
 };
 
@@ -60,10 +56,7 @@ describe('HttpExceptionFilter', () => {
     it('extracts message from object-style HttpException response', () => {
       const { status, body } = captureResponse(
         filter,
-        new HttpException(
-          { message: 'Validation failed', error: 'Bad Request' },
-          422,
-        ),
+        new HttpException({ message: 'Validation failed', error: 'Bad Request' }, 422),
       );
       expect(status).toBe(422);
       expect(body.message).toBe('Validation failed');
@@ -72,10 +65,7 @@ describe('HttpExceptionFilter', () => {
     it('joins array messages (Zod/class-validator style) with semicolons', () => {
       const { body } = captureResponse(
         filter,
-        new HttpException(
-          { message: ['field a is required', 'field b is invalid'] },
-          422,
-        ),
+        new HttpException({ message: ['field a is required', 'field b is invalid'] }, 422),
       );
       expect(body.message).toBe('field a is required; field b is invalid');
     });
@@ -150,10 +140,7 @@ describe('HttpExceptionFilter', () => {
 
   describe('Response envelope shape', () => {
     it('always has { success: false, message: string, data: null }', () => {
-      const { body } = captureResponse(
-        filter,
-        new HttpException('Forbidden', 403),
-      );
+      const { body } = captureResponse(filter, new HttpException('Forbidden', 403));
       expect(body).toMatchObject({
         success: false,
         message: expect.any(String),

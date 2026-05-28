@@ -1,10 +1,24 @@
 import {
-  ArgumentMetadata,
+  type ArgumentMetadata,
   Injectable,
-  PipeTransform,
+  type PipeTransform,
   UnprocessableEntityException,
 } from '@nestjs/common';
 import { ZodType } from 'zod';
+
+/** Shape that `createZodDto(schema)` from nestjs-zod attaches to a DTO class. */
+interface ZodDtoStatic {
+  schema: ZodType;
+}
+
+/** Type-guard — returns true when `value` is a class with a `.schema` ZodType. */
+function hasZodSchema(value: unknown): value is ZodDtoStatic {
+  return (
+    typeof value === 'function' &&
+    'schema' in value &&
+    typeof (value as ZodDtoStatic).schema?.safeParse === 'function'
+  );
+}
 
 /**
  * Validates and transforms incoming data against a Zod schema.
@@ -28,8 +42,7 @@ export class ZodValidationPipe implements PipeTransform {
 
   transform(value: unknown, metadata: ArgumentMetadata) {
     // Resolve which schema to use
-    const schema =
-      this.schema ?? this.extractSchemaFromMetatype(metadata.metatype) ?? null;
+    const schema = this.schema ?? this.extractSchemaFromMetatype(metadata.metatype) ?? null;
 
     // No schema = pass through (primitives, NestJS internals, etc.)
     if (!schema) return value;
@@ -54,11 +67,9 @@ export class ZodValidationPipe implements PipeTransform {
    * `createZodDto(schema)` from nestjs-zod attaches the schema as a
    * static property — we read it here for the global-pipe use case.
    */
-  private extractSchemaFromMetatype(
-    metatype: ArgumentMetadata['metatype'],
-  ): ZodType | undefined {
-    if (metatype && typeof (metatype as any).schema?.safeParse === 'function') {
-      return (metatype as any).schema as ZodType;
+  private extractSchemaFromMetatype(metatype: ArgumentMetadata['metatype']): ZodType | undefined {
+    if (metatype && hasZodSchema(metatype)) {
+      return metatype.schema;
     }
     return undefined;
   }

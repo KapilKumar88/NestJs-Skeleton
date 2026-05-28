@@ -1,9 +1,9 @@
 import { Injectable } from '@nestjs/common';
-import { Prisma, TodoStatus } from '@prisma/client';
+import { type Prisma, TodoStatus } from '@prisma/client';
 import { PrismaService } from '../../../services/database/prisma.service';
-import { CreateTodoDto } from './dto/create-todo.dto';
-import { UpdateTodoDto } from './dto/update-todo.dto';
-import { QueryTodoDto } from './dto/query-todo.dto';
+import { type CreateTodoDto } from './dto/create-todo.dto';
+import { type UpdateTodoDto } from './dto/update-todo.dto';
+import { type QueryTodoDto } from './dto/query-todo.dto';
 
 /**
  * All Prisma queries for the todos domain.

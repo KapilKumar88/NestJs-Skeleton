@@ -45,10 +45,7 @@ async function bootstrap() {
   // ── Global response shaping ──────────────────────────────────────────
   const reflector = app.get(Reflector);
   app.useGlobalFilters(new HttpExceptionFilter());
-  app.useGlobalInterceptors(
-    new LoggingInterceptor(),
-    new TransformInterceptor(reflector),
-  );
+  app.useGlobalInterceptors(new LoggingInterceptor(), new TransformInterceptor(reflector));
 
   // Global Zod validation — validates any DTO built with createZodDto(schema)
   app.useGlobalPipes(new ZodValidationPipe());
@@ -71,4 +68,4 @@ async function bootstrap() {
 
   await app.listen(port);
 }
-bootstrap();
+void bootstrap();
