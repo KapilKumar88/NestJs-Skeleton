@@ -1,7 +1,8 @@
 import { z } from 'zod';
+import { createZodDto } from 'nestjs-zod';
 
 export const verifyEmailSchema = z.object({
   token: z.string().min(1, 'token is required'),
 });
 
-export type VerifyEmailDto = z.infer<typeof verifyEmailSchema>;
+export class VerifyEmailDto extends createZodDto(verifyEmailSchema) {}

@@ -379,7 +379,9 @@ export class AuthService {
       this.jwtService.signAsync(payload, {
         secret: this.configService.get<string>('jwt.refreshSecret'),
         // JWT_REFRESH_EXPIRES_IN is validated by Zod at startup — safe to assert StringValue
-        expiresIn: this.configService.get<string>('jwt.refreshExpiresIn') as JwtSignOptions['expiresIn'],
+        expiresIn: this.configService.get<string>(
+          'jwt.refreshExpiresIn',
+        ) as JwtSignOptions['expiresIn'],
       }),
     ]);
 

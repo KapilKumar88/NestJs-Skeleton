@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { createZodDto } from 'nestjs-zod';
 import { TodoStatus } from '@prisma/client';
 
 export const updateTodoSchema = z.object({
@@ -7,4 +8,4 @@ export const updateTodoSchema = z.object({
   status: z.enum([TodoStatus.PENDING, TodoStatus.IN_PROGRESS, TodoStatus.DONE]).optional(),
 });
 
-export type UpdateTodoDto = z.infer<typeof updateTodoSchema>;
+export class UpdateTodoDto extends createZodDto(updateTodoSchema) {}

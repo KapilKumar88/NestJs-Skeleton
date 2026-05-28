@@ -13,6 +13,16 @@ import { LogoutDto } from './dto/logout.dto';
 import { Public } from '../../../guard/decorators/public.decorator';
 import { CurrentUser } from '../../../guard/decorators/current-user.decorator';
 import { ResponseMessage } from '../../../common/decorators/response-message.decorator';
+import {
+  ApiProtectedEndpointResponses,
+  ApiPublicThrottledQueryResponses,
+  ApiPublicThrottledResponses,
+  ApiUnauthorizedErrorResponse,
+} from '../../../common/swagger/responses.swagger';
+
+const EMPTY_SUCCESS = (message: string) => ({
+  example: { success: true, message, data: null },
+});
 
 @ApiTags('Auth')
 @Controller({ path: 'auth', version: '1' })
@@ -21,7 +31,6 @@ export class AuthController {
 
   // ─── Register ────────────────────────────────────────────────────────────────
 
-  // Strict limit: 10 requests per 60 s per IP — prevents account-creation spam
   @Throttle({ default: { ttl: seconds(60), limit: 10 } })
   @Public()
   @Post('register')
@@ -35,17 +44,17 @@ export class AuthController {
   })
   @ApiResponse({
     status: 201,
-    description: 'Request accepted — check your email for the verification link',
+    description:
+      'Accepted — a verification email has been dispatched (new account) or an "already exists" notice (duplicate)',
+    schema: EMPTY_SUCCESS('If this email is new to us, a verification link has been sent'),
   })
-  @ApiResponse({ status: 422, description: 'Validation error' })
-  @ApiResponse({ status: 429, description: 'Too many requests' })
+  @ApiPublicThrottledResponses()
   async register(@Body() dto: RegisterDto, @Headers('x-request-id') requestId?: string) {
     return this.authService.register(dto, requestId);
   }
 
   // ─── Login ───────────────────────────────────────────────────────────────────
 
-  // Strict limit: 10 requests per 60 s per IP — prevents brute-force credential attacks
   @Throttle({ default: { ttl: seconds(60), limit: 10 } })
   @Public()
   @Post('login')
@@ -54,21 +63,28 @@ export class AuthController {
   @ApiOperation({ summary: 'Authenticate and receive tokens' })
   @ApiResponse({
     status: 200,
-    description: 'Returns user + access & refresh tokens',
+    description:
+      'Authentication successful — returns access token, refresh token, and user profile',
+    schema: {
+      example: {
+        success: true,
+        message: 'Login successful',
+        data: {
+          accessToken: 'access_token',
+          refreshToken: 'refresh_token',
+          user: { id: 1, email: 'user@example.com', name: 'John Doe' },
+        },
+      },
+    },
   })
-  @ApiResponse({
-    status: 401,
-    description: 'Invalid credentials, or email not yet verified',
-  })
-  @ApiResponse({ status: 422, description: 'Validation error' })
-  @ApiResponse({ status: 429, description: 'Too many requests' })
+  @ApiUnauthorizedErrorResponse('Invalid credentials')
+  @ApiPublicThrottledResponses()
   async login(@Body() dto: LoginDto, @Headers('x-request-id') requestId?: string) {
     return this.authService.login(dto, requestId);
   }
 
   // ─── Verify Email ─────────────────────────────────────────────────────────────
 
-  // Strict limit: 20 requests per 60 s per IP — token is single-use anyway
   @Throttle({ default: { ttl: seconds(60), limit: 20 } })
   @Public()
   @Get('verify-email')
@@ -78,24 +94,20 @@ export class AuthController {
     summary: 'Verify email address via token from verification email',
     description: 'Consumes the single-use token. Returns 401 for any invalid or expired token.',
   })
-  @ApiQuery({
-    name: 'token',
-    required: true,
-    description: 'Verification token',
-  })
-  @ApiResponse({ status: 200, description: 'Email verified' })
+  @ApiQuery({ name: 'token', required: true, description: 'Single-use email verification token' })
   @ApiResponse({
-    status: 401,
-    description: 'Invalid or expired verification token',
+    status: 200,
+    description: 'Email verified — the account is now active and login is permitted',
+    schema: EMPTY_SUCCESS('Email verified successfully. You may now log in.'),
   })
-  @ApiResponse({ status: 429, description: 'Too many requests' })
+  @ApiUnauthorizedErrorResponse('Invalid or expired verification token')
+  @ApiPublicThrottledQueryResponses()
   async verifyEmail(@Query() dto: VerifyEmailDto, @Headers('x-request-id') requestId?: string) {
     return this.authService.verifyEmail(dto, requestId);
   }
 
   // ─── Resend Verification ──────────────────────────────────────────────────────
 
-  // Strict limit: 5 requests per 60 s per IP — prevents email-bombing
   @Throttle({ default: { ttl: seconds(60), limit: 5 } })
   @Public()
   @Post('resend-verification')
@@ -108,10 +120,10 @@ export class AuthController {
   })
   @ApiResponse({
     status: 200,
-    description: 'Request accepted — check your email',
+    description: 'Accepted — a new verification link has been dispatched if applicable',
+    schema: EMPTY_SUCCESS('If your email is registered and unverified, a new link has been sent'),
   })
-  @ApiResponse({ status: 422, description: 'Validation error' })
-  @ApiResponse({ status: 429, description: 'Too many requests' })
+  @ApiPublicThrottledResponses()
   async resendVerification(
     @Body() dto: ResendVerificationDto,
     @Headers('x-request-id') requestId?: string,
@@ -121,7 +133,6 @@ export class AuthController {
 
   // ─── Forgot Password ──────────────────────────────────────────────────────────
 
-  // Strict limit: 5 requests per 60 s per IP — prevents reset-link flooding
   @Throttle({ default: { ttl: seconds(60), limit: 5 } })
   @Public()
   @Post('forgot-password')
@@ -134,10 +145,10 @@ export class AuthController {
   })
   @ApiResponse({
     status: 200,
-    description: 'Request accepted — check your email',
+    description: 'Accepted — a reset link has been dispatched if the email is registered',
+    schema: EMPTY_SUCCESS('If an account with that email exists, a reset link has been sent'),
   })
-  @ApiResponse({ status: 422, description: 'Validation error' })
-  @ApiResponse({ status: 429, description: 'Too many requests' })
+  @ApiPublicThrottledResponses()
   async forgotPassword(
     @Body() dto: ForgotPasswordDto,
     @Headers('x-request-id') requestId?: string,
@@ -147,7 +158,6 @@ export class AuthController {
 
   // ─── Reset Password ───────────────────────────────────────────────────────────
 
-  // Strict limit: 5 requests per 60 s per IP — token is single-use anyway
   @Throttle({ default: { ttl: seconds(60), limit: 5 } })
   @Public()
   @Post('reset-password')
@@ -160,42 +170,43 @@ export class AuthController {
   })
   @ApiResponse({
     status: 200,
-    description: 'Password updated; all sessions revoked',
+    description: 'Password updated — all existing sessions have been revoked',
+    schema: EMPTY_SUCCESS('Password reset successfully. Please log in with your new password.'),
   })
-  @ApiResponse({
-    status: 401,
-    description: 'Invalid or expired reset token',
-  })
-  @ApiResponse({ status: 422, description: 'Validation error' })
-  @ApiResponse({ status: 429, description: 'Too many requests' })
+  @ApiUnauthorizedErrorResponse('Invalid or expired reset token')
+  @ApiPublicThrottledResponses()
   async resetPassword(@Body() dto: ResetPasswordDto, @Headers('x-request-id') requestId?: string) {
     return this.authService.resetPassword(dto, requestId);
   }
 
   // ─── Refresh ─────────────────────────────────────────────────────────────────
 
-  // Strict limit: 10 requests per 60 s per IP — prevents refresh-token brute force
   @Throttle({ default: { ttl: seconds(60), limit: 10 } })
   @Public()
   @Post('refresh')
   @HttpCode(HttpStatus.OK)
   @ResponseMessage('Tokens refreshed')
-  @ApiOperation({
-    summary: 'Rotate refresh token and obtain a new access token',
-  })
+  @ApiOperation({ summary: 'Rotate refresh token and obtain a new access token' })
   @ApiResponse({
     status: 200,
-    description: 'Returns new access & refresh tokens',
+    description:
+      'Token rotation successful — old refresh token is consumed and a new pair is issued',
+    schema: {
+      example: {
+        success: true,
+        message: 'Tokens refreshed',
+        data: { accessToken: '<token>', refreshToken: '<token>' },
+      },
+    },
   })
-  @ApiResponse({ status: 401, description: 'Invalid or expired refresh token' })
-  @ApiResponse({ status: 429, description: 'Too many requests' })
+  @ApiUnauthorizedErrorResponse('Invalid or expired refresh token')
+  @ApiPublicThrottledResponses()
   async refresh(@Body() dto: RefreshTokenDto, @Headers('x-request-id') requestId?: string) {
     return this.authService.refreshTokens(dto, requestId);
   }
 
   // ─── Logout ──────────────────────────────────────────────────────────────────
 
-  // Protected by JWT (not @Public) — global throttle rate applies
   @Post('logout')
   @HttpCode(HttpStatus.OK)
   @ResponseMessage('Logged out successfully')
@@ -206,11 +217,12 @@ export class AuthController {
       'Provide `refreshToken` in the body to revoke only the current session. ' +
       'If omitted, all sessions for the account are revoked.',
   })
-  @ApiResponse({ status: 200, description: 'Session(s) revoked' })
   @ApiResponse({
-    status: 401,
-    description: 'Unauthorized — missing or invalid access token',
+    status: 200,
+    description: 'Session(s) revoked successfully',
+    schema: EMPTY_SUCCESS('Logged out successfully'),
   })
+  @ApiProtectedEndpointResponses()
   async logout(
     @CurrentUser('id') userId: number,
     @Body() dto: LogoutDto,

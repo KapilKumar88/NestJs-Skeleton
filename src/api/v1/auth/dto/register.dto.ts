@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { createZodDto } from 'nestjs-zod';
 
 export const registerSchema = z.object({
   email: z.email().trim().toLowerCase(),
@@ -6,4 +7,4 @@ export const registerSchema = z.object({
   password: z.string().min(6).max(128),
 });
 
-export type RegisterDto = z.infer<typeof registerSchema>;
+export class RegisterDto extends createZodDto(registerSchema) {}

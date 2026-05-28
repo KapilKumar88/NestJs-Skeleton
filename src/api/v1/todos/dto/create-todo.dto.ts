@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { createZodDto } from 'nestjs-zod';
 import { TodoStatus } from '@prisma/client';
 
 export const createTodoSchema = z.object({
@@ -10,4 +11,4 @@ export const createTodoSchema = z.object({
     .default(TodoStatus.PENDING),
 });
 
-export type CreateTodoDto = z.infer<typeof createTodoSchema>;
+export class CreateTodoDto extends createZodDto(createTodoSchema) {}

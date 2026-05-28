@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { createZodDto } from 'nestjs-zod';
 
 export const resetPasswordSchema = z.object({
   token: z.string().min(1, 'token is required'),
@@ -8,4 +9,4 @@ export const resetPasswordSchema = z.object({
     .max(128, 'Password must not exceed 128 characters'),
 });
 
-export type ResetPasswordDto = z.infer<typeof resetPasswordSchema>;
+export class ResetPasswordDto extends createZodDto(resetPasswordSchema) {}
