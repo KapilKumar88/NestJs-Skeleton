@@ -30,7 +30,8 @@ npm install
 
 # 3. Set up environment variables
 cp .env.example .env
-# Edit .env — see the Environment Variables section below
+npm run generate:secrets   # auto-generates JWT_SECRET and JWT_REFRESH_SECRET
+# Fill in the remaining values (DATABASE_URL, MAIL_*, etc.) — see Environment Variables below
 
 # 4. Generate Prisma client & run migrations
 npx prisma generate
@@ -73,7 +74,19 @@ DATABASE_URL="postgresql://postgres:postgres@localhost:5432/myapp?schema=public"
 
 ### JWT
 
-Both secrets **must differ** and be **≥ 32 characters**. Generate them with:
+Both secrets **must differ** and be **≥ 32 characters**. The easiest way is the built-in script:
+
+```bash
+# Generates JWT_SECRET and JWT_REFRESH_SECRET and writes them directly to .env
+npm run generate:secrets
+
+# Rotate secrets later (will prompt for confirmation — invalidates active sessions)
+npm run generate:secrets -- --force
+```
+
+The script uses `crypto.randomBytes(64)` (128-char hex, 512-bit entropy) and is safe to re-run — it skips keys that already have real values unless `--force` is passed.
+
+Alternatively, generate manually with:
 
 ```bash
 openssl rand -hex 64
@@ -295,9 +308,9 @@ APP_URL=https://api.yourdomain.com
 
 DATABASE_URL="postgresql://<user>:<password>@<db-host>:5432/<dbname>?schema=public"
 
-JWT_SECRET=<generated_with_openssl_rand_hex_64>
+JWT_SECRET=<run: npm run generate:secrets>
 JWT_EXPIRES_IN=15m
-JWT_REFRESH_SECRET=<different_generated_with_openssl_rand_hex_64>
+JWT_REFRESH_SECRET=<run: npm run generate:secrets>
 JWT_REFRESH_EXPIRES_IN=7d
 
 REDIS_HOST=<redis-host>
